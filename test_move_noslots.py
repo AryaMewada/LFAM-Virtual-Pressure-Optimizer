@@ -1,5 +1,4 @@
 from __future__ import annotations
-from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Optional, Dict, Any
 import math
@@ -18,14 +17,12 @@ class MoveType(Enum):
 
 class Point2D:
     """Represents a 2D point (X, Y)."""
-    __slots__ = ['x', 'y']
     def __init__(self, x: float, y: float):
         self.x = x
         self.y = y
 
 class Point3D:
     """Represents a 3D point (X, Y, Z)."""
-    __slots__ = ['x', 'y', 'z']
     def __init__(self, x: float, y: float, z: float):
         self.x = x
         self.y = y
@@ -33,13 +30,6 @@ class Point3D:
 
 class Move:
     """Represents a single G-code movement."""
-    __slots__ = [
-        'id', 'type', 'start', 'end', 'feedrate', 'extrusion', 
-        'extrusion_mode', 'layer', 'line_number', 'arc_center', 
-        'arc_radius', 'arc_direction', 'original_line', 'is_travel', 
-        'is_print', 'is_arc', 'comment', 'raw_params'
-    ]
-
     def __init__(self, id: int, type: MoveType, start: Point3D, end: Point3D, feedrate: float, 
                  extrusion: float, extrusion_mode: str, layer: int, line_number: int,
                  arc_center: Optional[Point2D] = None, arc_radius: Optional[float] = None,

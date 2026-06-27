@@ -1,11 +1,12 @@
-from __future__ import annotations
-from dataclasses import dataclass, field
+import re
+
+move_py = """from __future__ import annotations
 from enum import Enum, auto
 from typing import Optional, Dict, Any
 import math
 
 class MoveType(Enum):
-    """Enumeration of G-code move types."""
+    \"\"\"Enumeration of G-code move types.\"\"\"
     G0 = auto()
     G1 = auto()
     G2 = auto()
@@ -17,29 +18,20 @@ class MoveType(Enum):
     RAW = auto()
 
 class Point2D:
-    """Represents a 2D point (X, Y)."""
-    __slots__ = ['x', 'y']
+    \"\"\"Represents a 2D point (X, Y).\"\"\"
     def __init__(self, x: float, y: float):
         self.x = x
         self.y = y
 
 class Point3D:
-    """Represents a 3D point (X, Y, Z)."""
-    __slots__ = ['x', 'y', 'z']
+    \"\"\"Represents a 3D point (X, Y, Z).\"\"\"
     def __init__(self, x: float, y: float, z: float):
         self.x = x
         self.y = y
         self.z = z
 
 class Move:
-    """Represents a single G-code movement."""
-    __slots__ = [
-        'id', 'type', 'start', 'end', 'feedrate', 'extrusion', 
-        'extrusion_mode', 'layer', 'line_number', 'arc_center', 
-        'arc_radius', 'arc_direction', 'original_line', 'is_travel', 
-        'is_print', 'is_arc', 'comment', 'raw_params'
-    ]
-
+    \"\"\"Represents a single G-code movement.\"\"\"
     def __init__(self, id: int, type: MoveType, start: Point3D, end: Point3D, feedrate: float, 
                  extrusion: float, extrusion_mode: str, layer: int, line_number: int,
                  arc_center: Optional[Point2D] = None, arc_radius: Optional[float] = None,
@@ -67,7 +59,7 @@ class Move:
 
     @property
     def length(self) -> float:
-        """Computes the 3D Euclidean distance or arc length for arcs."""
+        \"\"\"Computes the 3D Euclidean distance or arc length for arcs.\"\"\"
         dx = self.end.x - self.start.x
         dy = self.end.y - self.start.y
         dz = self.end.z - self.start.z
@@ -83,14 +75,14 @@ class Move:
 
     @property
     def duration(self) -> float:
-        """Computes the duration of the move in minutes."""
+        \"\"\"Computes the duration of the move in minutes.\"\"\"
         if self.feedrate and self.feedrate > 0:
             return self.length / self.feedrate
         return 0.0
 
     @property
     def flow_rate(self) -> float:
-        """Computes the flow rate (extrusion / duration)."""
+        \"\"\"Computes the flow rate (extrusion / duration).\"\"\"
         d = self.duration
         if d > 0:
             return self.extrusion / d
@@ -98,7 +90,7 @@ class Move:
 
     @property
     def xy_length(self) -> float:
-        """Computes the 2D (XY) distance or arc length."""
+        \"\"\"Computes the 2D (XY) distance or arc length.\"\"\"
         dx = self.end.x - self.start.x
         dy = self.end.y - self.start.y
         
@@ -109,3 +101,7 @@ class Move:
                 return self.arc_radius * angle
                 
         return math.hypot(dx, dy)
+"""
+with open("test_move_noslots.py", "w") as f:
+    f.write(move_py)
+

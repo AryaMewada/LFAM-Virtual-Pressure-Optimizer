@@ -18,14 +18,15 @@ class OptimizationSettings:
     flow_smoothing: int = 0   # 0-100
     speed_smoothing: int = 0  # 0-100
 
-@dataclass
 class Modification:
     """Records a modification made to a move."""
-    move_id: int
-    type: str
-    original_value: float
-    new_value: float
-    reason: str
+    __slots__ = ['move_id', 'type', 'original_value', 'new_value', 'reason']
+    def __init__(self, move_id: int, type: str, original_value: float, new_value: float, reason: str):
+        self.move_id = move_id
+        self.type = type
+        self.original_value = original_value
+        self.new_value = new_value
+        self.reason = reason
 
 @dataclass
 class OptimizationResult:

@@ -4,41 +4,37 @@ import math
 from typing import List, Dict, Any, Optional
 from src.engine.parser.move import Move, MoveType, Point3D
 
-@dataclass
 class AnalyzedMove(Move):
     """Extended Move dataclass containing geometric analysis data."""
-    corner_angle: float = 0.0
-    curve_radius: float = float('inf')
-    is_path_start: bool = False
-    is_path_end: bool = False
-    continuous_region_id: int = -1
-    segment_density: float = 0.0
-    flow_rate_change: float = 0.0
-    speed_change: float = 0.0
+    __slots__ = ['corner_angle', 'curve_radius', 'is_path_start', 'is_path_end', 'continuous_region_id', 'segment_density', 'flow_rate_change', 'speed_change']
     
+    def __init__(self, id: int, type: MoveType, start: Point3D, end: Point3D, feedrate: float, 
+                 extrusion: float, extrusion_mode: str, layer: int, line_number: int,
+                 arc_center=None, arc_radius=None, arc_direction=None, original_line="",
+                 is_travel=False, is_print=False, is_arc=False, comment="", raw_params=None,
+                 corner_angle=0.0, curve_radius=float('inf'), is_path_start=False, is_path_end=False,
+                 continuous_region_id=-1, segment_density=0.0, flow_rate_change=0.0, speed_change=0.0):
+        super().__init__(id, type, start, end, feedrate, extrusion, extrusion_mode, layer, line_number,
+                         arc_center, arc_radius, arc_direction, original_line, is_travel, is_print, is_arc, comment, raw_params)
+        self.corner_angle = corner_angle
+        self.curve_radius = curve_radius
+        self.is_path_start = is_path_start
+        self.is_path_end = is_path_end
+        self.continuous_region_id = continuous_region_id
+        self.segment_density = segment_density
+        self.flow_rate_change = flow_rate_change
+        self.speed_change = speed_change
+
     @classmethod
     def from_move(cls, move: Move) -> AnalyzedMove:
         """Creates an AnalyzedMove from a base Move."""
         return cls(
-            id=move.id,
-            type=move.type,
-            start=move.start,
-            end=move.end,
-            feedrate=move.feedrate,
-            extrusion=move.extrusion,
-            extrusion_mode=move.extrusion_mode,
-            layer=move.layer,
-            line_number=move.line_number,
-            arc_center=move.arc_center,
-            arc_radius=move.arc_radius,
-            arc_direction=move.arc_direction,
-            original_line=move.original_line,
-            is_travel=move.is_travel,
-            is_print=move.is_print,
-            is_arc=move.is_arc,
-            comment=move.comment,
-            raw_params=move.raw_params
+            id=move.id, type=move.type, start=move.start, end=move.end, feedrate=move.feedrate,
+            extrusion=move.extrusion, extrusion_mode=move.extrusion_mode, layer=move.layer, line_number=move.line_number,
+            arc_center=move.arc_center, arc_radius=move.arc_radius, arc_direction=move.arc_direction, original_line=move.original_line,
+            is_travel=move.is_travel, is_print=move.is_print, is_arc=move.is_arc, comment=move.comment, raw_params=move.raw_params
         )
+
 
 class GeometryAnalyzer:
     """Analyzes a sequence of moves to extract geometric features like corner angles and curve radii."""
