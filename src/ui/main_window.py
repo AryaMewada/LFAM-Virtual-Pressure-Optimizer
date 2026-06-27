@@ -705,7 +705,8 @@ class MainWindow(QMainWindow):
                 'x2': m.end.x,
                 'y2': m.end.y,
                 'z2': m.end.z,
-                'vpi': vpi
+                'vpi': vpi,
+                'duration': m.duration * 60.0
             })
         return [layers_dict[k] for k in sorted(layers_dict.keys())]
 

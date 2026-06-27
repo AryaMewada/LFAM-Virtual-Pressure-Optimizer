@@ -116,8 +116,10 @@ class PressureOptimizer:
                     for k, idx in enumerate(path_indices[:ramp_len]):
                         target_m = optimized[idx]
                         orig_e = target_m.extrusion
+                        orig_f = target_m.feedrate
                         target_m.extrusion = orig_e * ramp[k]
-                        modifications.append(Modification(target_m.id, 'start_ramp', orig_e, target_m.extrusion, "Start path ramp"))
+                        target_m.feedrate = orig_f * max(0.2, ramp[k]) # Don't drop speed below 20%
+                        modifications.append(Modification(target_m.id, 'start_ramp', orig_e, target_m.extrusion, "Start path ramp (E & F)"))
                         
         # 4. End Taper
         if self.settings.end_taper > 0:
@@ -132,8 +134,10 @@ class PressureOptimizer:
                     for k, idx in enumerate(path_indices[-ramp_len:]):
                         target_m = optimized[idx]
                         orig_e = target_m.extrusion
+                        orig_f = target_m.feedrate
                         target_m.extrusion = orig_e * ramp[k]
-                        modifications.append(Modification(target_m.id, 'end_taper', orig_e, target_m.extrusion, "End path taper"))
+                        target_m.feedrate = orig_f * max(0.2, ramp[k]) # Don't drop speed below 20%
+                        modifications.append(Modification(target_m.id, 'end_taper', orig_e, target_m.extrusion, "End path taper (E & F)"))
                         
         # 5. Flow Smoothing
         if self.settings.flow_smoothing > 0:
