@@ -161,6 +161,38 @@ class ProfileSelectorWidget(QFrame):
         if self._machine_combo.count() > 0:
             self._on_machine_changed(self._machine_combo.currentText())
 
+    def refresh_profiles(self, select_material: str = None, select_machine: str = None):
+        """Reload profiles from disk and update combo boxes."""
+        self.profile_manager._load_all_profiles()
+        self._materials_map = {m['name']: m for m in self.profile_manager.load_materials()}
+        self._machines_map = {m['name']: m for m in self.profile_manager.load_machines()}
+        
+        self._material_combo.blockSignals(True)
+        self._material_combo.clear()
+        for key in self._materials_map:
+            self._material_combo.addItem(key)
+        if select_material:
+            idx = self._material_combo.findText(select_material)
+            if idx >= 0:
+                self._material_combo.setCurrentIndex(idx)
+        self._material_combo.blockSignals(False)
+        
+        self._machine_combo.blockSignals(True)
+        self._machine_combo.clear()
+        for key in self._machines_map:
+            self._machine_combo.addItem(key)
+        if select_machine:
+            idx = self._machine_combo.findText(select_machine)
+            if idx >= 0:
+                self._machine_combo.setCurrentIndex(idx)
+        self._machine_combo.blockSignals(False)
+        
+        # Trigger updates
+        if self._material_combo.count() > 0:
+            self._on_material_changed(self._material_combo.currentText())
+        if self._machine_combo.count() > 0:
+            self._on_machine_changed(self._machine_combo.currentText())
+
     # ─── Factory Helpers ─────────────────────────────────────────────
 
     def _create_section_container(self) -> QFrame:

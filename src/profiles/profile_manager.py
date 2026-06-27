@@ -119,3 +119,47 @@ class ProfileManager:
     def list_machines(self) -> List[str]:
         """Returns a list of all machine names."""
         return [mach['name'] for mach in self._machines_cache.values()]
+
+    def save_material(self, data: dict) -> None:
+        """Saves a material profile to disk and updates the cache."""
+        self._validate_material(data)
+        mat_id = data['id']
+        filename = f"{mat_id}.json"
+        filepath = os.path.join(self.materials_dir, filename)
+        
+        os.makedirs(self.materials_dir, exist_ok=True)
+        with open(filepath, 'w') as f:
+            json.dump(data, f, indent=2)
+            
+        self._materials_cache[mat_id] = data
+        
+    def save_machine(self, data: dict) -> None:
+        """Saves a machine profile to disk and updates the cache."""
+        self._validate_machine(data)
+        mach_id = data['id']
+        filename = f"{mach_id}.json"
+        filepath = os.path.join(self.machines_dir, filename)
+        
+        os.makedirs(self.machines_dir, exist_ok=True)
+        with open(filepath, 'w') as f:
+            json.dump(data, f, indent=2)
+            
+        self._machines_cache[mach_id] = data
+        
+    def delete_material(self, material_id: str) -> None:
+        """Deletes a material profile from disk and cache."""
+        if material_id in self._materials_cache:
+            filename = f"{material_id}.json"
+            filepath = os.path.join(self.materials_dir, filename)
+            if os.path.exists(filepath):
+                os.remove(filepath)
+            del self._materials_cache[material_id]
+            
+    def delete_machine(self, machine_id: str) -> None:
+        """Deletes a machine profile from disk and cache."""
+        if machine_id in self._machines_cache:
+            filename = f"{machine_id}.json"
+            filepath = os.path.join(self.machines_dir, filename)
+            if os.path.exists(filepath):
+                os.remove(filepath)
+            del self._machines_cache[machine_id]

@@ -62,6 +62,13 @@ try:
 except ImportError:
     ResultsPanel = None
 
+try:
+    from src.ui.widgets.material_editor_dialog import MaterialEditorDialog
+    from src.ui.widgets.machine_editor_dialog import MachineEditorDialog
+except ImportError:
+    MaterialEditorDialog = None
+    MachineEditorDialog = None
+
 # ── Engine imports (graceful degradation) ─────────────────────────────────
 
 try:
@@ -886,23 +893,39 @@ class MainWindow(QMainWindow):
 
     def _show_material_settings(self):
         """Show the material settings dialog (placeholder for profile editor)."""
-        QMessageBox.information(
-            self,
-            'Material Settings',
-            'Material profile configuration.\n\n'
-            'Use the Profile Selector in the sidebar to choose a material, '
-            'or define custom material properties here.',
-        )
+        if MaterialEditorDialog is None:
+            QMessageBox.information(
+                self,
+                'Material Settings',
+                'Material editor module is unavailable.',
+            )
+            return
+
+        dialog = MaterialEditorDialog(self, self._material_profile)
+        if dialog.exec():
+            data = dialog.get_data()
+            if self.profile_selector and hasattr(self.profile_selector, 'profile_manager'):
+                self.profile_selector.profile_manager.save_material(data)
+                self.profile_selector.refresh_profiles(select_material=data['name'])
+            self.statusBar().showMessage(f"Saved material profile: {data['name']}")
 
     def _show_machine_settings(self):
         """Show the machine settings dialog (placeholder for machine editor)."""
-        QMessageBox.information(
-            self,
-            'Machine Settings',
-            'Machine profile configuration.\n\n'
-            'Configure nozzle diameter, max extrusion rate, '
-            'build volume, and other machine-specific parameters.',
-        )
+        if MachineEditorDialog is None:
+            QMessageBox.information(
+                self,
+                'Machine Settings',
+                'Machine editor module is unavailable.',
+            )
+            return
+
+        dialog = MachineEditorDialog(self, self._machine_profile)
+        if dialog.exec():
+            data = dialog.get_data()
+            if self.profile_selector and hasattr(self.profile_selector, 'profile_manager'):
+                self.profile_selector.profile_manager.save_machine(data)
+                self.profile_selector.refresh_profiles(select_machine=data['name'])
+            self.statusBar().showMessage(f"Saved machine profile: {data['name']}")
 
     def _show_about(self):
         """Show the About dialog."""
