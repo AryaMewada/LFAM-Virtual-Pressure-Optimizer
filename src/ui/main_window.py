@@ -257,7 +257,8 @@ class MainWindow(QMainWindow):
         super().__init__(parent)
 
         self.setWindowTitle('LFAM Optimizer v1.0')
-        self.setMinimumSize(1280, 850)
+        self.setMinimumSize(1400, 1100)
+        self.resize(1400, 1100)
         self.setStyleSheet(f"QMainWindow {{ background-color: {Theme.BG_PRIMARY}; }}")
 
         # ── Engine availability flag ──────────────────────────────
@@ -700,8 +701,10 @@ class MainWindow(QMainWindow):
                 'type': 'print' if m.is_print else 'travel',
                 'x1': m.start.x,
                 'y1': m.start.y,
+                'z1': m.start.z,
                 'x2': m.end.x,
                 'y2': m.end.y,
+                'z2': m.end.z,
                 'vpi': vpi
             })
         return [layers_dict[k] for k in sorted(layers_dict.keys())]

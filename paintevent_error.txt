@@ -1,0 +1,432 @@
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 420, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 474, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 420, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 474, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 420, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 474, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 420, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 474, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 420, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 474, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 420, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 474, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 420, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 474, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 420, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 474, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 420, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 474, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 420, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 474, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 420, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 474, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 420, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 474, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 420, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 474, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 420, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 474, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 420, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 474, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 420, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 474, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 420, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 474, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 420, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 474, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 420, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 474, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 420, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 474, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 420, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 474, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 420, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 474, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 420, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 474, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 420, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 474, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 420, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 474, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 420, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 474, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 420, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 474, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 420, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 474, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 420, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 474, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 420, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 474, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 420, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 474, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 420, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 474, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 420, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 474, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 420, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 474, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 443, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 497, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 443, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 497, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 443, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 497, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 443, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 497, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 443, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 497, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 443, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 497, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 443, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 497, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 443, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 497, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 443, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 497, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 443, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 497, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 443, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 497, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 443, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 497, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 443, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 497, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 443, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 497, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 443, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 497, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 443, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 497, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 443, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 497, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 443, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 497, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 443, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 497, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
+Error in src/ui/widgets/layer_viewer_widget.py: '_LayerCanvas' object has no attribute '_sim_index'
+Traceback (most recent call last):
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 443, in paintEvent
+    self._safe_paintEvent(event)
+  File "/Users/admin/.gemini/antigravity/scratch/lfam-optimizer/src/ui/widgets/layer_viewer_widget.py", line 497, in _safe_paintEvent
+    moves_to_draw = self._moves if self._sim_index == -1 else self._moves[:self._sim_index + 1]
+AttributeError: '_LayerCanvas' object has no attribute '_sim_index'
+
