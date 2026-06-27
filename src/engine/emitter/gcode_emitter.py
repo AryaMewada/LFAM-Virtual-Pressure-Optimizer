@@ -40,6 +40,12 @@ class GCodeEmitter:
                 prev_x = move.end.x
                 prev_y = move.end.y
                 prev_z = move.end.z
+                
+                # Critical bug fix: Sync absolute E tracker when G92 is emitted
+                if move.type == MoveType.OTHER and 'G92' in move.raw_params:
+                    params = move.raw_params['G92']
+                    if 'E' in params:
+                        prev_e = params['E']
                 continue
                 
             cmd = ""
@@ -95,6 +101,8 @@ class GCodeEmitter:
             else:
                 if move.extrusion != 0.0:
                     parts.append(f"E{fmt.format(move.extrusion)}")
+                if prev_e is not None:
+                    prev_e += move.extrusion
                     
             # Feedrate
             if prev_f != move.feedrate and move.feedrate > 0:
