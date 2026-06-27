@@ -1,0 +1,38 @@
+{
+  "name": "Nylon (PA6) GF30",
+  "id": "nylon_gf",
+  "category": "Engineering",
+  "temperature": {
+    "nozzle": 275,
+    "bed": 100
+  },
+  "pressure_sensitivity": 0.9,
+  "flow_characteristics": {
+    "optimal_flow_rate": 35.0,
+    "max_flow_rate": 80.0,
+    "viscosity_index": 0.95,
+    "melt_flow_index": 3.0
+  },
+  "corner_sensitivity": 0.95,
+  "curve_sensitivity": 0.8,
+  "pressure_decay": 0.65,
+  "vpi_weights": {
+    "flow": 0.3,
+    "speed": 0.2,
+    "corner": 0.3,
+    "curve": 0.05,
+    "history": 0.05,
+    "acceleration": 0.05,
+    "start_stop": 0.05,
+    "density": 0.0
+  },
+  "optimization_defaults": {
+    "corner_slowdown": 90,
+    "curve_adaptation": 85,
+    "start_ramp": 70,
+    "end_taper": 70,
+    "flow_smoothing": 60,
+    "speed_smoothing": 50
+  },
+  "description": "Nylon + 30% Glass Fiber. Much higher viscosity, very corner sensitive, needs slower speeds."
+}

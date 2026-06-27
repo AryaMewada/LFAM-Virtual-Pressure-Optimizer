@@ -1,0 +1,38 @@
+{
+  "name": "ABS",
+  "id": "abs",
+  "category": "Commodity",
+  "temperature": {
+    "nozzle": 240,
+    "bed": 100
+  },
+  "pressure_sensitivity": 0.6,
+  "flow_characteristics": {
+    "optimal_flow_rate": 50.0,
+    "max_flow_rate": 120.0,
+    "viscosity_index": 0.7,
+    "melt_flow_index": 10.0
+  },
+  "corner_sensitivity": 0.7,
+  "curve_sensitivity": 0.5,
+  "pressure_decay": 0.85,
+  "vpi_weights": {
+    "flow": 0.2,
+    "speed": 0.15,
+    "corner": 0.2,
+    "curve": 0.1,
+    "history": 0.1,
+    "acceleration": 0.1,
+    "start_stop": 0.1,
+    "density": 0.05
+  },
+  "optimization_defaults": {
+    "corner_slowdown": 70,
+    "curve_adaptation": 60,
+    "start_ramp": 50,
+    "end_taper": 50,
+    "flow_smoothing": 40,
+    "speed_smoothing": 30
+  },
+  "description": "Commodity ABS material with moderate pressure sensitivity and good flow."
+}

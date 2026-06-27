@@ -1,0 +1,23 @@
+{
+  "name": "Large Pellet Printer",
+  "id": "large_pellet_printer",
+  "description": "Larger machine with twin-screw extruder and high throughput",
+  "nozzle_diameter": 8.0,
+  "layer_height": 3.0,
+  "extrusion_width": 12.0,
+  "screw_diameter": 45,
+  "screw_rpm_limits": {
+    "min": 10,
+    "max": 300
+  },
+  "max_feedrate": 10000,
+  "max_acceleration": 800,
+  "build_volume": {
+    "x": 2000,
+    "y": 2000,
+    "z": 1000
+  },
+  "motion_controller": "Beckhoff",
+  "extruder_type": "twin-screw",
+  "firmware": "Custom"
+}

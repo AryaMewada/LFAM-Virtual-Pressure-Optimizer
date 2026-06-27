@@ -1,0 +1,23 @@
+{
+  "name": "Generic LFAM System",
+  "id": "generic_lfam",
+  "description": "Generic large format additive manufacturing system with single-screw pellet extruder",
+  "nozzle_diameter": 4.0,
+  "layer_height": 2.0,
+  "extrusion_width": 6.0,
+  "screw_diameter": 30,
+  "screw_rpm_limits": {
+    "min": 5,
+    "max": 200
+  },
+  "max_feedrate": 6000,
+  "max_acceleration": 500,
+  "build_volume": {
+    "x": 1000,
+    "y": 1000,
+    "z": 500
+  },
+  "motion_controller": "Duet3",
+  "extruder_type": "single-screw",
+  "firmware": "RepRapFirmware"
+}

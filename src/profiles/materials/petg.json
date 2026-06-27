@@ -1,0 +1,38 @@
+{
+  "name": "PETG",
+  "id": "petg",
+  "category": "Commodity",
+  "temperature": {
+    "nozzle": 245,
+    "bed": 85
+  },
+  "pressure_sensitivity": 0.55,
+  "flow_characteristics": {
+    "optimal_flow_rate": 55.0,
+    "max_flow_rate": 110.0,
+    "viscosity_index": 0.65,
+    "melt_flow_index": 12.0
+  },
+  "corner_sensitivity": 0.65,
+  "curve_sensitivity": 0.55,
+  "pressure_decay": 0.8,
+  "vpi_weights": {
+    "flow": 0.2,
+    "speed": 0.15,
+    "corner": 0.2,
+    "curve": 0.1,
+    "history": 0.1,
+    "acceleration": 0.1,
+    "start_stop": 0.1,
+    "density": 0.05
+  },
+  "optimization_defaults": {
+    "corner_slowdown": 65,
+    "curve_adaptation": 60,
+    "start_ramp": 45,
+    "end_taper": 45,
+    "flow_smoothing": 40,
+    "speed_smoothing": 30
+  },
+  "description": "Commodity PETG. Easy to print, moderate everything."
+}
