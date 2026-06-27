@@ -15,10 +15,13 @@ from PyQt6.QtWidgets import (
     QSplitter,
     QFileDialog,
     QMessageBox,
+    QScrollArea,
+    QProgressBar,
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
 from src.ui.theme import Theme
+from src.ui.widgets.loading_overlay import LoadingOverlay
 
 # ── Widget imports (graceful degradation) ─────────────────────────────────
 
@@ -260,6 +263,18 @@ class MainWindow(QMainWindow):
         # ── Engine availability flag ──────────────────────────────
         self._engine_available = ENGINE_AVAILABLE
 
+        # ── Setup Status Bar & Progress ─────────────────────────
+        self.statusBar().showMessage('Ready')
+        
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setMaximumWidth(200)
+        self.progress_bar.hide()
+        self.statusBar().addPermanentWidget(self.progress_bar)
+        
+        self.loading_overlay = LoadingOverlay(self)
+
         # ── Internal state ────────────────────────────────────────
         self._current_file_path = None
         self._parsed_data = None
@@ -400,13 +415,9 @@ class MainWindow(QMainWindow):
         else:
             self.analysis_panel = None
 
-        # Vertical splitter for chart and layer viewer
-        viz_splitter = QSplitter(Qt.Orientation.Vertical)
-        viz_splitter.setHandleWidth(2)
-
         if PressureChartWidget is not None:
             self.pressure_chart = PressureChartWidget()
-            viz_splitter.addWidget(self.pressure_chart)
+            content_layout.addWidget(self.pressure_chart)
         else:
             self.pressure_chart = None
             chart_placeholder = QFrame()
@@ -418,11 +429,11 @@ class MainWindow(QMainWindow):
                     border-radius: 8px;
                 }}
             """)
-            viz_splitter.addWidget(chart_placeholder)
+            content_layout.addWidget(chart_placeholder)
 
         if LayerViewerWidget is not None:
             self.layer_viewer = LayerViewerWidget()
-            viz_splitter.addWidget(self.layer_viewer)
+            content_layout.addWidget(self.layer_viewer)
         else:
             self.layer_viewer = None
             viewer_placeholder = QFrame()
@@ -434,9 +445,7 @@ class MainWindow(QMainWindow):
                     border-radius: 8px;
                 }}
             """)
-            viz_splitter.addWidget(viewer_placeholder)
-
-        content_layout.addWidget(viz_splitter, stretch=1)
+            content_layout.addWidget(viewer_placeholder)
 
         # Results Panel
         if ResultsPanel is not None:
@@ -445,7 +454,39 @@ class MainWindow(QMainWindow):
         else:
             self.results_panel = None
 
-        main_layout.addWidget(content_frame, stretch=1)
+        content_layout.addStretch()
+
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        scroll_area.setStyleSheet(f"""
+            QScrollArea {{
+                background-color: transparent;
+                border: none;
+            }}
+            QScrollBar:vertical {{
+                background: {Theme.BG_PRIMARY};
+                width: 10px;
+                margin: 0px;
+            }}
+            QScrollBar::handle:vertical {{
+                background: {Theme.BORDER};
+                border-radius: 5px;
+                min-height: 20px;
+            }}
+            QScrollBar::handle:vertical:hover {{
+                background: {Theme.TEXT_MUTED};
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+                height: 0px;
+            }}
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
+                background: none;
+            }}
+        """)
+        scroll_area.setWidget(content_frame)
+
+        main_layout.addWidget(scroll_area, stretch=1)
 
     # ──────────────────────────────────────────────────────────────
     # Signal Connections
@@ -565,12 +606,9 @@ class MainWindow(QMainWindow):
                 self.statusBar().showMessage(f'Save error: {str(e)}')
 
     def _on_worker_finished(self, result: dict):
-        """
-        Handle completed worker task results.
-
-        Args:
-            result: Dictionary with task_type key and associated result data.
-        """
+        self.progress_bar.hide()
+        self.loading_overlay.hide_loading()
+            
         task_type = result.get('task_type', '')
 
         if task_type == 'parse':
@@ -669,22 +707,15 @@ class MainWindow(QMainWindow):
         return [layers_dict[k] for k in sorted(layers_dict.keys())]
 
     def _on_worker_error(self, msg: str):
-        """
-        Handle worker error.
-
-        Args:
-            msg: Error description string.
-        """
-        self.statusBar().showMessage(f'Error: {msg}')
+        self.progress_bar.hide()
+        self.loading_overlay.hide_loading()
+        self.statusBar().showMessage('Error occurred')
+        QMessageBox.critical(self, "Error", f"An error occurred during processing:\n{msg}")
         self._worker = None
 
     def _on_worker_progress(self, value: int):
-        """
-        Handle worker progress update.
-
-        Args:
-            value: Progress percentage (0-100).
-        """
+        self.progress_bar.setValue(value)
+        self.loading_overlay.set_progress(value)
         self.statusBar().showMessage(f'Processing... {value}%')
 
     # ──────────────────────────────────────────────────────────────
@@ -707,12 +738,22 @@ class MainWindow(QMainWindow):
         self._worker.progress.connect(self._on_worker_progress)
         self._worker.finished.connect(self._on_worker_finished)
         self._worker.error.connect(self._on_worker_error)
+
+        title = "Loading File..." if task_type == 'parse' else "Analyzing Path..." if task_type == 'analyze' else "Optimizing..."
+        self.loading_overlay.show_loading(title)
+
         self._worker.start()
 
         self.statusBar().showMessage(f'Starting {task_type}...')
 
     # ──────────────────────────────────────────────────────────────
     # Menu Actions
+    # ──────────────────────────────────────────────────────────────
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if hasattr(self, 'loading_overlay'):
+            self.loading_overlay.resize(self.size())
     # ──────────────────────────────────────────────────────────────
 
     def _open_file_dialog(self):

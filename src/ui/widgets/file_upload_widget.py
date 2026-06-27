@@ -284,6 +284,14 @@ class FileUploadWidget(QFrame):
     # ─── Paint Event ────────────────────────────────────────────────
 
     def paintEvent(self, event):
+        try:
+            self._safe_paintEvent(event)
+        except Exception as e:
+            import traceback
+            with open('paintevent_error.txt', 'a') as errf:
+                errf.write(f'Error in src/ui/widgets/file_upload_widget.py: {str(e)}\n{traceback.format_exc()}\n')
+
+    def _safe_paintEvent(self, event):
         """Custom paint for empty and drag-hovering states."""
         super().paintEvent(event)
 

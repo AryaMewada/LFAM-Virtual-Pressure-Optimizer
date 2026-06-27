@@ -166,6 +166,7 @@ class LayerViewerWidget(QFrame):
             self._canvas._moves = []
 
         self._canvas._bounds_cache = None
+        self._canvas._needs_redraw = True
         total = max(len(self._all_moves), 1)
         self._layer_label.setText(f"Layer: {layer_number + 1} / {total}")
         self._canvas.update()
@@ -276,69 +277,106 @@ class LayerViewerWidget(QFrame):
             return QPointF(px, py)
 
         def paintEvent(self, event):
+            try:
+                self._safe_paintEvent(event)
+            except Exception as e:
+                import traceback
+                with open('paintevent_error.txt', 'a') as errf:
+                    errf.write(f'Error in src/ui/widgets/layer_viewer_widget.py: {str(e)}\n{traceback.format_exc()}\n')
+
+        def _safe_paintEvent(self, event):
             painter = QPainter(self)
-            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-            # Fill background
             painter.fillRect(self.rect(), QColor(Theme.BG_TERTIARY))
-
+            
             if not self._moves:
                 painter.setPen(QColor(Theme.TEXT_MUTED))
                 painter.setFont(QFont("Segoe UI", 11))
                 painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, "No layer data available")
                 painter.end()
                 return
-
-            # Draw each move
-            draw_arrows = len(self._moves) < 1000
-            
-            # Group lines by color bucket to avoid 100k individual drawLine calls
-            num_buckets = 20
-            buckets = [QPainterPath() for _ in range(num_buckets)]
-            travel_path = QPainterPath()
-            
-            # Also keep track of individual moves if we need to draw arrows
-            arrow_data = []
-
-            for move in self._moves:
-                x1 = move.get('x1', 0.0)
-                y1 = move.get('y1', 0.0)
-                x2 = move.get('x2', 0.0)
-                y2 = move.get('y2', 0.0)
-                move_type = move.get('type', 'travel')
-                vpi = move.get('vpi', 0.0)
-
-                p1 = self._transform_point(x1, y1)
-                p2 = self._transform_point(x2, y2)
-
-                if move_type == 'travel':
-                    travel_path.moveTo(p1)
-                    travel_path.lineTo(p2)
-                else:
-                    bucket_idx = max(0, min(num_buckets - 1, int(vpi * num_buckets)))
-                    buckets[bucket_idx].moveTo(p1)
-                    buckets[bucket_idx].lineTo(p2)
-                    if draw_arrows:
-                        color = Theme.pressure_color(bucket_idx / float(num_buckets - 1))
-                        arrow_data.append((p1, p2, color))
-            
-            # Draw travel moves
-            if not travel_path.isEmpty():
-                painter.setPen(QPen(QColor(Theme.TEXT_MUTED), 1, Qt.PenStyle.DotLine, Qt.PenCapStyle.RoundCap))
-                painter.drawPath(travel_path)
                 
-            # Draw print moves
-            for i in range(num_buckets):
-                if not buckets[i].isEmpty():
-                    color = Theme.pressure_color(i / float(max(1, num_buckets - 1)))
-                    painter.setPen(QPen(color, 2, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
-                    painter.drawPath(buckets[i])
-                    
-            # Draw arrows if not too many
-            if draw_arrows:
-                for p1, p2, color in arrow_data:
-                    self._draw_direction_arrow(painter, p1, p2, color)
+            from PyQt6.QtGui import QPixmap
+            from PyQt6.QtCore import QLineF
+            
+            # If pixmap is missing or wrong size, or needs redraw, recreate it
+            if self._needs_redraw or self._pixmap_cache is None or self._pixmap_cache.size() != self.size():
+                self._pixmap_cache = QPixmap(self.size())
+                self._pixmap_cache.fill(Qt.GlobalColor.transparent)
+                
+                cache_painter = QPainter(self._pixmap_cache)
+                cache_painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+                
+                draw_arrows = len(self._moves) < 1000
+                num_buckets = 20
+                buckets = [[] for _ in range(num_buckets)]
+                travel_lines = []
+                arrow_data = []
+                
+                # Precompute transforms
+                bounds = self._calculate_bounds()
+                min_x, min_y, max_x, max_y = bounds
+                extent_x = max_x - min_x
+                extent_y = max_y - min_y
+                w = self.width()
+                h = self.height()
+                scale_x = w / extent_x if extent_x > 0 else 1.0
+                scale_y = h / extent_y if extent_y > 0 else 1.0
+                scale = min(scale_x, scale_y) * 0.9
+                cx = w / 2.0
+                cy = h / 2.0
+                data_cx = (min_x + max_x) / 2.0
+                data_cy = (min_y + max_y) / 2.0
 
+                eff_scale = scale * self._zoom
+                pan_x = self._pan_offset.x()
+                pan_y = self._pan_offset.y()
+                
+                for move in self._moves:
+                    x1 = move.get('x1', 0.0)
+                    y1 = move.get('y1', 0.0)
+                    x2 = move.get('x2', 0.0)
+                    y2 = move.get('y2', 0.0)
+                    move_type = move.get('type', 'travel')
+                    vpi = move.get('vpi', 0.0)
+                    
+                    px1 = cx + (x1 - data_cx) * eff_scale + pan_x
+                    py1 = cy - (y1 - data_cy) * eff_scale + pan_y
+                    px2 = cx + (x2 - data_cx) * eff_scale + pan_x
+                    py2 = cy - (y2 - data_cy) * eff_scale + pan_y
+                    
+                    p1 = QPointF(px1, py1)
+                    p2 = QPointF(px2, py2)
+                    
+                    line = QLineF(p1, p2)
+                    
+                    if move_type == 'travel':
+                        travel_lines.append(line)
+                    else:
+                        bucket_idx = max(0, min(num_buckets - 1, int(vpi * num_buckets)))
+                        buckets[bucket_idx].append(line)
+                        if draw_arrows:
+                            color = Theme.pressure_color(bucket_idx / float(num_buckets - 1))
+                            arrow_data.append((p1, p2, color))
+                
+                if travel_lines:
+                    cache_painter.setPen(QPen(QColor(Theme.TEXT_MUTED), 1, Qt.PenStyle.DotLine, Qt.PenCapStyle.RoundCap))
+                    cache_painter.drawLines(travel_lines)
+                    
+                for i in range(num_buckets):
+                    if buckets[i]:
+                        color = Theme.pressure_color(i / float(max(1, num_buckets - 1)))
+                        cache_painter.setPen(QPen(color, 2, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+                        cache_painter.drawLines(buckets[i])
+                        
+                if draw_arrows:
+                    for p1, p2, color in arrow_data:
+                        self._draw_direction_arrow(cache_painter, p1, p2, color)
+                        
+                cache_painter.end()
+                self._needs_redraw = False
+                
+            # Draw the cached pixmap (0ms)
+            painter.drawPixmap(0, 0, self._pixmap_cache)
             painter.end()
 
         def _draw_direction_arrow(self, painter: QPainter, p1: QPointF, p2: QPointF, color: QColor):
@@ -393,10 +431,19 @@ class LayerViewerWidget(QFrame):
 
         def fit_to_view(self):
             """Reset pan and zoom to fit the entire layer in view."""
-            self._pan_offset = QPointF(0.0, 0.0)
+            self._pan_offset = QPointF(0, 0)
             self._zoom = 1.0
-            self._bounds_cache = None
+            self._pixmap_cache = None
+            self._needs_redraw = True
             self.update()
+
+        def _invalidate_cache(self):
+            self._bounds_cache = None
+            self._needs_redraw = True
+            
+        def resizeEvent(self, event):
+            self._needs_redraw = True
+            super().resizeEvent(event)
 
         def mousePressEvent(self, event):
             if event.button() == Qt.MouseButton.LeftButton:

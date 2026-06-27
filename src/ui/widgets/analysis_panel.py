@@ -36,6 +36,14 @@ class StatCard(QFrame):
 
     # ------------------------------------------------------------------ paint
     def paintEvent(self, event):
+        try:
+            self._safe_paintEvent(event)
+        except Exception as e:
+            import traceback
+            with open('paintevent_error.txt', 'a') as errf:
+                errf.write(f'Error in src/ui/widgets/analysis_panel.py: {str(e)}\n{traceback.format_exc()}\n')
+
+    def _safe_paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 

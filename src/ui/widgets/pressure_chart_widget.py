@@ -44,13 +44,23 @@ class PressureChartWidget(QFrame):
         self._canvas = self._PressureCanvas(self)
         layout.addWidget(self._canvas, 1)
 
-    def set_data(self, original_vpis: list, optimized_vpis: list = None):
+    def set_data(self, original_vpis, optimized_vpis = None):
         """Set pressure data on the chart.
 
         Args:
-            original_vpis: List of VPI float values for the original toolpath.
-            optimized_vpis: Optional list of VPI float values for the optimized toolpath.
+            original_vpis: List of VPI float values OR PressureResult objects for the original toolpath.
+            optimized_vpis: Optional list of VPI float values OR PressureResult objects for the optimized toolpath.
         """
+        if original_vpis and hasattr(original_vpis[0], 'vpi'):
+            original_vpis = [p.vpi for p in original_vpis]
+        elif isinstance(original_vpis, dict):
+            original_vpis = list(original_vpis.values())
+            
+        if optimized_vpis and hasattr(optimized_vpis[0], 'vpi'):
+            optimized_vpis = [p.vpi for p in optimized_vpis]
+        elif isinstance(optimized_vpis, dict):
+            optimized_vpis = list(optimized_vpis.values())
+            
         self._canvas._original_data = list(original_vpis) if original_vpis else []
         self._canvas._optimized_data = list(optimized_vpis) if optimized_vpis else []
         self._canvas._hover_index = -1
@@ -102,6 +112,14 @@ class PressureChartWidget(QFrame):
             return (x, y)
 
         def paintEvent(self, event):
+            try:
+                self._safe_paintEvent(event)
+            except Exception as e:
+                import traceback
+                with open('paintevent_error.txt', 'a') as errf:
+                    errf.write(f'Error in src/ui/widgets/pressure_chart_widget.py: {str(e)}\n{traceback.format_exc()}\n')
+
+        def _safe_paintEvent(self, event):
             painter = QPainter(self)
             painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
