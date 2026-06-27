@@ -506,6 +506,56 @@ class Theme:
         )
 
     @staticmethod
+    def speed_color(normalized_speed: float) -> QColor:
+        """
+        Return an interpolated QColor for speed.
+        0.0 = blue (#3b82f6), 0.5 = purple (#a855f7), 1.0 = hot pink (#ec4899)
+        """
+        val = max(0.0, min(1.0, normalized_speed))
+        c1 = QColor('#3b82f6')
+        c2 = QColor('#a855f7')
+        c3 = QColor('#ec4899')
+        if val < 0.5:
+            t = val * 2.0
+            return QColor(
+                int(c1.red() + (c2.red() - c1.red()) * t),
+                int(c1.green() + (c2.green() - c1.green()) * t),
+                int(c1.blue() + (c2.blue() - c1.blue()) * t)
+            )
+        else:
+            t = (val - 0.5) * 2.0
+            return QColor(
+                int(c2.red() + (c3.red() - c2.red()) * t),
+                int(c2.green() + (c3.green() - c2.green()) * t),
+                int(c2.blue() + (c3.blue() - c2.blue()) * t)
+            )
+
+    @staticmethod
+    def flow_color(normalized_flow: float) -> QColor:
+        """
+        Return an interpolated QColor for extrusion flow.
+        0.0 = dark blue (#1e3a8a), 0.5 = teal (#14b8a6), 1.0 = bright yellow (#fde047)
+        """
+        val = max(0.0, min(1.0, normalized_flow))
+        c1 = QColor('#1e3a8a')
+        c2 = QColor('#14b8a6')
+        c3 = QColor('#fde047')
+        if val < 0.5:
+            t = val * 2.0
+            return QColor(
+                int(c1.red() + (c2.red() - c1.red()) * t),
+                int(c1.green() + (c2.green() - c1.green()) * t),
+                int(c1.blue() + (c2.blue() - c1.blue()) * t)
+            )
+        else:
+            t = (val - 0.5) * 2.0
+            return QColor(
+                int(c2.red() + (c3.red() - c2.red()) * t),
+                int(c2.green() + (c3.green() - c2.green()) * t),
+                int(c2.blue() + (c3.blue() - c2.blue()) * t)
+            )
+
+    @staticmethod
     def create_gradient(start_color: str, end_color: str) -> QLinearGradient:
         """
         Create a horizontal QLinearGradient from start_color to end_color.

@@ -17,6 +17,8 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QScrollArea,
     QProgressBar,
+    QLabel,
+    QPushButton,
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
@@ -351,9 +353,101 @@ class MainWindow(QMainWindow):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
 
-        main_layout = QHBoxLayout(central_widget)
+        root_layout = QVBoxLayout(central_widget)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.setSpacing(0)
+
+        # ── Top Navigation Bar ───────────────────────────────────
+        navbar = QFrame()
+        navbar.setFixedHeight(60)
+        navbar.setStyleSheet(f"""
+            QFrame {{
+                background-color: {Theme.BG_SECONDARY};
+                border-bottom: 1px solid {Theme.BORDER};
+            }}
+        """)
+        navbar_layout = QHBoxLayout(navbar)
+        navbar_layout.setContentsMargins(20, 0, 20, 0)
+        
+        logo_label = QLabel("ADDON MAC LFAM OPTIMIZER")
+        logo_label.setStyleSheet(f"""
+            color: {Theme.TEXT_PRIMARY}; 
+            font-size: 18pt; 
+            font-weight: 900; 
+            border: none; 
+            background: transparent;
+            letter-spacing: 2px;
+        """)
+        navbar_layout.addWidget(logo_label)
+        
+        navbar_layout.addStretch()
+        
+        # Action Buttons in Navbar
+        self.optimize_btn = QPushButton("OPTIMIZE")
+        self.optimize_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.optimize_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: qlineargradient(
+                    x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {Theme.ACCENT_GRADIENT_START},
+                    stop:1 {Theme.ACCENT_GRADIENT_END}
+                );
+                color: white;
+                font-size: 13px;
+                font-weight: bold;
+                padding: 8px 24px;
+                border-radius: 6px;
+                border: none;
+            }}
+            QPushButton:hover {{
+                background: qlineargradient(
+                    x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #5b9af6,
+                    stop:1 #a57cf6
+                );
+            }}
+            QPushButton:disabled {{
+                background: {Theme.BG_TERTIARY};
+                color: {Theme.TEXT_MUTED};
+            }}
+        """)
+        self.optimize_btn.setEnabled(False)
+        navbar_layout.addWidget(self.optimize_btn)
+
+        self.export_btn = QPushButton("EXPORT G-CODE")
+        self.export_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.export_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {Theme.BG_TERTIARY};
+                color: {Theme.TEXT_PRIMARY};
+                font-size: 13px;
+                font-weight: bold;
+                border: 1px solid {Theme.BORDER};
+                border-radius: 6px;
+                padding: 8px 16px;
+                margin-left: 12px;
+            }}
+            QPushButton:hover {{
+                background-color: {Theme.BG_ELEVATED};
+                border-color: {Theme.TEXT_MUTED};
+            }}
+            QPushButton:disabled {{
+                background-color: transparent;
+                color: {Theme.TEXT_MUTED};
+                border: 1px dashed {Theme.BORDER};
+            }}
+        """)
+        self.export_btn.setEnabled(False)
+        navbar_layout.addWidget(self.export_btn)
+            
+        root_layout.addWidget(navbar)
+
+        # ── Main Content Area ────────────────────────────────────
+        main_content = QWidget()
+        main_layout = QHBoxLayout(main_content)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
+        root_layout.addWidget(main_content)
 
         # ── Left Sidebar ─────────────────────────────────────────
         self.sidebar = QFrame()
@@ -409,29 +503,7 @@ class MainWindow(QMainWindow):
         content_layout.setContentsMargins(12, 12, 12, 12)
         content_layout.setSpacing(12)
 
-        # Analysis Panel
-        if AnalysisPanel is not None:
-            self.analysis_panel = AnalysisPanel()
-            content_layout.addWidget(self.analysis_panel)
-        else:
-            self.analysis_panel = None
-
-        if PressureChartWidget is not None:
-            self.pressure_chart = PressureChartWidget()
-            content_layout.addWidget(self.pressure_chart)
-        else:
-            self.pressure_chart = None
-            chart_placeholder = QFrame()
-            chart_placeholder.setMinimumHeight(200)
-            chart_placeholder.setStyleSheet(f"""
-                QFrame {{
-                    background-color: {Theme.BG_SECONDARY};
-                    border: 1px solid {Theme.BORDER};
-                    border-radius: 8px;
-                }}
-            """)
-            content_layout.addWidget(chart_placeholder)
-
+        # 1. Layer View
         if LayerViewerWidget is not None:
             self.layer_viewer = LayerViewerWidget()
             content_layout.addWidget(self.layer_viewer)
@@ -448,7 +520,31 @@ class MainWindow(QMainWindow):
             """)
             content_layout.addWidget(viewer_placeholder)
 
-        # Results Panel
+        # 2. Pressure Distribution
+        if PressureChartWidget is not None:
+            self.pressure_chart = PressureChartWidget()
+            content_layout.addWidget(self.pressure_chart)
+        else:
+            self.pressure_chart = None
+            chart_placeholder = QFrame()
+            chart_placeholder.setMinimumHeight(200)
+            chart_placeholder.setStyleSheet(f"""
+                QFrame {{
+                    background-color: {Theme.BG_SECONDARY};
+                    border: 1px solid {Theme.BORDER};
+                    border-radius: 8px;
+                }}
+            """)
+            content_layout.addWidget(chart_placeholder)
+
+        # 3. Toolpath Analytics
+        if AnalysisPanel is not None:
+            self.analysis_panel = AnalysisPanel()
+            content_layout.addWidget(self.analysis_panel)
+        else:
+            self.analysis_panel = None
+
+        # 4. Optimization Results (Includes 5. Optimization Log)
         if ResultsPanel is not None:
             self.results_panel = ResultsPanel()
             content_layout.addWidget(self.results_panel)
@@ -504,8 +600,8 @@ class MainWindow(QMainWindow):
             if hasattr(self.profile_selector, 'machine_changed'):
                 self.profile_selector.machine_changed.connect(self._on_machine_changed)
 
-        if self.optimization_controls is not None and hasattr(self.optimization_controls, 'optimize_clicked'):
-            self.optimization_controls.optimize_clicked.connect(self._on_optimize_clicked)
+        self.optimize_btn.clicked.connect(self._on_optimize_clicked)
+        self.export_btn.clicked.connect(self._on_save_requested)
 
         if self.results_panel is not None and hasattr(self.results_panel, 'save_requested'):
             self.results_panel.save_requested.connect(self._on_save_requested)
@@ -646,11 +742,20 @@ class MainWindow(QMainWindow):
             if self.layer_viewer is not None and self._parsed_data:
                 layer_moves = self._group_moves_for_viewer(self._parsed_data, self._pressure_data)
                 self.layer_viewer.set_moves(layer_moves)
+            
+            # Enable optimization button
+            if hasattr(self, 'optimize_btn'):
+                self.optimize_btn.setEnabled(True)
 
         elif task_type == 'optimize':
             self._optimized_data = result.get('optimized_data')
             self._optimized_gcode = result.get('optimized_gcode')
             self.statusBar().showMessage('Optimization complete')
+            
+            if hasattr(self, 'export_btn'):
+                self.export_btn.setEnabled(True)
+            if hasattr(self, 'optimize_btn'):
+                self.optimize_btn.setEnabled(True)
 
             # Update results panel
             if self.results_panel is not None and hasattr(self.results_panel, 'update_results'):
@@ -706,7 +811,9 @@ class MainWindow(QMainWindow):
                 'y2': m.end.y,
                 'z2': m.end.z,
                 'vpi': vpi,
-                'duration': m.duration * 60.0
+                'duration': m.duration * 60.0,
+                'feedrate': getattr(m, 'feedrate', 0.0),
+                'extrusion': getattr(m, 'extrusion', 0.0)
             })
         return [layers_dict[k] for k in sorted(layers_dict.keys())]
 
@@ -716,6 +823,8 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage('Error occurred')
         QMessageBox.critical(self, "Error", f"An error occurred during processing:\n{msg}")
         self._worker = None
+        if hasattr(self, 'optimize_btn') and self._parsed_data is not None:
+            self.optimize_btn.setEnabled(True)
 
     def _on_worker_progress(self, value: int):
         self.progress_bar.setValue(value)

@@ -143,6 +143,19 @@ class LayerViewerWidget(QFrame):
             }}
         """)
         controls_layout.addWidget(fit_btn)
+        
+        self._heatmap_combo = QComboBox()
+        self._heatmap_combo.addItems(["Pressure (VPI)", "Speed (Feedrate)", "Flow (Extrusion)"])
+        self._heatmap_combo.setStyleSheet(f"""
+            QComboBox {{
+                background-color: {Theme.BG_TERTIARY};
+                color: {Theme.TEXT_PRIMARY};
+                border: 1px solid {Theme.BORDER};
+                border-radius: 4px;
+                padding: 4px 12px;
+            }}
+        """)
+        controls_layout.addWidget(self._heatmap_combo)
         layout.addLayout(controls_layout)
         
         # Simulation controls
@@ -190,6 +203,15 @@ class LayerViewerWidget(QFrame):
         self._play_start_btn.clicked.connect(self._play_from_start)
         self._sim_slider.valueChanged.connect(self._on_sim_scrub)
         self._speed_combo.currentIndexChanged.connect(self._update_timer_speed)
+        self._heatmap_combo.currentTextChanged.connect(self._on_heatmap_changed)
+
+    def _on_heatmap_changed(self, text: str):
+        mode = "pressure"
+        if "Speed" in text:
+            mode = "speed"
+        elif "Flow" in text:
+            mode = "flow"
+        self._canvas_3d.set_heatmap_mode(mode)
 
     def set_moves(self, moves: list, pressure_results: list = None):
         """Set layer move data and optional pressure results.
@@ -272,7 +294,7 @@ class LayerViewerWidget(QFrame):
         self._is_playing = not self._is_playing
         if self._is_playing:
             self._play_btn.setText("⏸ Pause")
-            if self._sim_time_sec >= self._current_layer_total_time - 0.001:
+            if self._sim_time_sec >= self._current_layer_total_time - 0.001 or self._sim_time_sec < 0.0:
                 self._sim_time_sec = 0.0
             self._timer.setInterval(16) # 60fps
             self._timer.start()
@@ -355,7 +377,23 @@ class LayerViewerWidget(QFrame):
             self._grid_item.setColor((grid_c.redF(), grid_c.greenF(), grid_c.blueF(), 0.3))
             self.addItem(self._grid_item)
             
+            # Setup mini axis widget in corner
+            self._axis_widget = gl.GLViewWidget(self)
+            self._axis_widget.setFixedSize(80, 80)
+            self._axis_widget.setBackgroundColor(bg_color) # Match main canvas background
+            self._axis_item = gl.GLAxisItem()
+            self._axis_item.setSize(x=5, y=5, z=5)
+            self._axis_widget.addItem(self._axis_item)
+            self._axis_widget.opts['distance'] = 15
+            self._axis_widget.opts['center'] = pg.Vector(0,0,0)
+            self._axis_widget.setMouseTracking(False)
+            self._axis_widget.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+            self._axis_widget.show()
+            
             self._sim_time_sec = -1.0
+            self._heatmap_mode = 'pressure'
+            self._max_feedrate = 1.0
+            self._max_extrusion = 1.0
             
             # Pre-computed arrays
             self._full_print_pos = np.zeros((0, 3), dtype=np.float32)
@@ -373,6 +411,19 @@ class LayerViewerWidget(QFrame):
             self._print_cum_times = [] # same
             self._travel_cum_times = [] # same
 
+
+        def resizeEvent(self, ev):
+            super().resizeEvent(ev)
+            # Position axis widget in bottom-right corner
+            self._axis_widget.move(self.width() - 90, self.height() - 90)
+
+        def update(self):
+            super().update()
+            if hasattr(self, '_axis_widget'):
+                self._axis_widget.opts['azimuth'] = self.opts['azimuth']
+                self._axis_widget.opts['elevation'] = self.opts['elevation']
+                self._axis_widget.update()
+
         def mouseMoveEvent(self, ev):
             # Invert the default PyQtGraph orbit movement for standard CAD feel
             lpos = ev.position() if hasattr(ev, 'position') else ev.localPos()
@@ -387,8 +438,8 @@ class LayerViewerWidget(QFrame):
                 if (ev.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier):
                     self.pan(diff.x(), diff.y(), 0, relative='view')
                 else:
-                    # Inverted from PyQtGraph default (-diff.x, diff.y)
-                    self.orbit(diff.x(), -diff.y())
+                    # Inverted vertical orbit from PyQtGraph default
+                    self.orbit(-diff.x(), diff.y())
             elif ev.buttons() == QtCore.Qt.MouseButton.MiddleButton:
                 if (ev.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier):
                     self.pan(diff.x(), 0, diff.y(), relative='view-upright')
@@ -399,6 +450,11 @@ class LayerViewerWidget(QFrame):
             super().mouseReleaseEvent(ev)
             self._last_mouse_pos = None
 
+        def set_heatmap_mode(self, mode: str):
+            self._heatmap_mode = mode
+            self._recompute_colors()
+            self._update_geometry()
+            
         def get_current_layer_duration(self):
             if 0 <= self._current_layer < len(self._layer_durations):
                 return self._layer_durations[self._current_layer]
@@ -408,6 +464,7 @@ class LayerViewerWidget(QFrame):
             self._all_moves = all_moves
             self._current_layer = 0
             self._precompute_arrays()
+            self._recompute_colors()
             self._update_geometry()
             
         def _precompute_arrays(self):
@@ -422,6 +479,19 @@ class LayerViewerWidget(QFrame):
             self._move_cum_times = []
             self._print_cum_times = []
             self._travel_cum_times = []
+            
+            # Find max values for normalization
+            max_f = 1.0
+            max_e = 1.0
+            for layer in self._all_moves:
+                for m in layer:
+                    if not m.get('type') == 'travel':
+                        f = m.get('feedrate', 0.0)
+                        e = m.get('extrusion', 0.0)
+                        if f > max_f: max_f = f
+                        if e > max_e: max_e = e
+            self._max_feedrate = max_f
+            self._max_extrusion = max_e
             
             for layer in self._all_moves:
                 layer_t = 0.0
@@ -443,10 +513,6 @@ class LayerViewerWidget(QFrame):
                     else:
                         p_times.append(layer_t)
                         print_pos.extend([[x1, y1, z1], [x2, y2, z2]])
-                        vpi = m.get('vpi', 0.0)
-                        qcolor = Theme.pressure_color(vpi)
-                        r, g, b, a = qcolor.redF(), qcolor.greenF(), qcolor.blueF(), qcolor.alphaF()
-                        print_color.extend([[r, g, b, a], [r, g, b, a]])
                         
                 self._print_layer_indices.append(len(print_pos))
                 self._travel_layer_indices.append(len(travel_pos))
@@ -518,6 +584,25 @@ class LayerViewerWidget(QFrame):
             self.opts['distance'] = max(distance, 10.0)
             self.update()
 
+
+        def _recompute_colors(self):
+            print_color = []
+            for layer in self._all_moves:
+                for m in layer:
+                    if m.get('type') != 'travel':
+                        if self._heatmap_mode == 'speed':
+                            val = m.get('feedrate', 0.0) / self._max_feedrate
+                            qcolor = Theme.speed_color(val)
+                        elif self._heatmap_mode == 'flow':
+                            val = m.get('extrusion', 0.0) / self._max_extrusion
+                            qcolor = Theme.flow_color(val)
+                        else:
+                            val = m.get('vpi', 0.0)
+                            qcolor = Theme.pressure_color(val)
+                            
+                        r, g, b, a = qcolor.redF(), qcolor.greenF(), qcolor.blueF(), qcolor.alphaF()
+                        print_color.extend([[r, g, b, a], [r, g, b, a]])
+            self._full_print_color = np.array(print_color, dtype=np.float32)
         def _update_geometry(self):
             if self._current_layer >= len(self._all_moves) or self._current_layer < 0:
                 self._print_item.setData(pos=np.zeros((0,3), dtype=np.float32), color=np.zeros((0,4), dtype=np.float32))

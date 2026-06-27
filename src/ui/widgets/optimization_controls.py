@@ -15,7 +15,6 @@ from src.ui.theme import Theme
 class OptimizationControls(QFrame):
     """Panel with optimization parameter sliders and action controls."""
 
-    optimize_clicked = pyqtSignal()
     settings_changed = pyqtSignal(dict)
 
     # slider definitions: (display_name, key, default_value)
@@ -95,7 +94,7 @@ class OptimizationControls(QFrame):
         """)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(10)
 
         # --- title ---
@@ -159,52 +158,14 @@ class OptimizationControls(QFrame):
         separator.setStyleSheet(f'background-color: {Theme.BORDER}; border: none;')
         layout.addWidget(separator)
 
-        # --- optimize button ---
-        self._optimize_btn = QPushButton('⚡ OPTIMIZE')
-        self._optimize_btn.setObjectName('optimizeButton')
-        self._optimize_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._optimize_btn.setStyleSheet(f"""
-            QPushButton#optimizeButton {{
-                background: qlineargradient(
-                    x1:0, y1:0, x2:1, y2:0,
-                    stop:0 {Theme.ACCENT_GRADIENT_START},
-                    stop:1 {Theme.ACCENT_GRADIENT_END}
-                );
-                color: white;
-                font-size: 14pt;
-                font-weight: bold;
-                height: 50px;
-                border-radius: 12px;
-                border: none;
-            }}
-            QPushButton#optimizeButton:hover {{
-                background: qlineargradient(
-                    x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #5b9af6,
-                    stop:1 #a57cf6
-                );
-            }}
-            QPushButton#optimizeButton:pressed {{
-                background: qlineargradient(
-                    x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #2b62c6,
-                    stop:1 #6b3cb6
-                );
-            }}
-            QPushButton#optimizeButton:disabled {{
-                background: {Theme.BG_TERTIARY};
-                color: {Theme.TEXT_MUTED};
-            }}
-        """)
-        self._optimize_btn.clicked.connect(self.optimize_clicked.emit)
-        layout.addWidget(self._optimize_btn)
-
-        # --- progress bar ---
+                # --- progress bar ---
         self._progress_bar = QProgressBar()
         self._progress_bar.setVisible(False)
         self._progress_bar.setTextVisible(True)
         self._progress_bar.setRange(0, 100)
         layout.addWidget(self._progress_bar)
+
+        
 
         layout.addStretch()
 
@@ -249,12 +210,13 @@ class OptimizationControls(QFrame):
         """Show progress bar and disable the optimize button."""
         self._progress_bar.setValue(0)
         self._progress_bar.setVisible(True)
-        self._optimize_btn.setEnabled(False)
+        
 
     def hide_progress(self):
         """Hide progress bar and re-enable the optimize button."""
         self._progress_bar.setVisible(False)
-        self._optimize_btn.setEnabled(True)
+        
+
 
     def set_progress(self, value: int):
         """Update the progress bar value."""

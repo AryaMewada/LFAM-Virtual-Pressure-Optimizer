@@ -39,7 +39,7 @@ class FileUploadWidget(QFrame):
         self.setAcceptDrops(True)
         self.setMinimumHeight(200)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
 
         # State management
         self._state = 'empty'  # 'empty', 'loading', 'loaded'

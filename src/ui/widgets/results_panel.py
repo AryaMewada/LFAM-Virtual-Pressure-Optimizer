@@ -181,16 +181,22 @@ class ResultsPanel(QFrame):
 
         main_layout.addLayout(cards_layout)
 
-        # Modifications log section
-        log_label = QLabel('Modification Log')
-        log_label.setStyleSheet(
-            f'color: {Theme.TEXT_SECONDARY}; '
-            f'font-size: 12pt; '
-            f'font-weight: bold; '
-            f'background: transparent; '
-            f'border: none;'
+        # Modifications log accordion toggle
+        self._log_toggle_btn = QPushButton('▶ Show Optimization Logs')
+        self._log_toggle_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._log_toggle_btn.setStyleSheet(
+            f'QPushButton {{ '
+            f'  color: {Theme.TEXT_SECONDARY}; '
+            f'  font-size: 12pt; '
+            f'  font-weight: bold; '
+            f'  background: transparent; '
+            f'  border: none; '
+            f'  text-align: left; '
+            f'}}'
+            f'QPushButton:hover {{ color: {Theme.TEXT_PRIMARY}; }}'
         )
-        main_layout.addWidget(log_label)
+        self._log_toggle_btn.clicked.connect(self._toggle_logs_accordion)
+        main_layout.addWidget(self._log_toggle_btn)
 
         # Scroll area for modification entries
         self._scroll_area = QScrollArea()
@@ -217,6 +223,7 @@ class ResultsPanel(QFrame):
         self._entries_layout.addStretch()
 
         self._scroll_area.setWidget(self._entries_container)
+        self._scroll_area.setVisible(False) # Hidden by default (accordion)
         main_layout.addWidget(self._scroll_area)
 
         # Show all button
@@ -240,31 +247,17 @@ class ResultsPanel(QFrame):
         self._show_all_btn.clicked.connect(self._toggle_show_all)
         main_layout.addWidget(self._show_all_btn)
 
-        # Save button
-        save_btn = QPushButton('Save Optimized G-code')
-        save_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        save_btn.setFixedHeight(45)
-        save_btn.setStyleSheet(
-            f'QPushButton {{ '
-            f'  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, '
-            f'    stop:0 {Theme.SUCCESS}, stop:1 #34d399); '
-            f'  color: white; '
-            f'  font-size: 14pt; '
-            f'  font-weight: bold; '
-            f'  border: none; '
-            f'  border-radius: 10px; '
-            f'}} '
-            f'QPushButton:hover {{ '
-            f'  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, '
-            f'    stop:0 #0d9668, stop:1 #2abf89); '
-            f'}} '
-            f'QPushButton:pressed {{ '
-            f'  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, '
-            f'    stop:0 #0a7d56, stop:1 #22a674); '
-            f'}}'
-        )
-        save_btn.clicked.connect(self.save_requested.emit)
-        main_layout.addWidget(save_btn)
+        # Save button removed as per user request
+    
+    def _toggle_logs_accordion(self):
+        """Toggle the visibility of the logs scroll area."""
+        is_visible = self._scroll_area.isVisible()
+        self._scroll_area.setVisible(not is_visible)
+        self._show_all_btn.setVisible(not is_visible and len(self._modifications) > self._max_display)
+        if is_visible:
+            self._log_toggle_btn.setText('▶ Show Optimization Logs')
+        else:
+            self._log_toggle_btn.setText('▼ Hide Optimization Logs')
 
     def _toggle_show_all(self):
         """Toggle between showing limited and all modification entries."""
@@ -298,7 +291,7 @@ class ResultsPanel(QFrame):
 
         # Update show all button
         total = len(self._modifications)
-        if total > self._max_display:
+        if total > self._max_display and self._scroll_area.isVisible():
             remaining = total - self._max_display
             if self._show_all:
                 self._show_all_btn.setText(f'Show Less (showing all {total})')

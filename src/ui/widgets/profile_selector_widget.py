@@ -76,7 +76,7 @@ class ProfileSelectorWidget(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName('ProfileSelectorWidget')
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
         self.setStyleSheet(f"""
             #ProfileSelectorWidget {{
                 background-color: {Theme.BG_SECONDARY};
