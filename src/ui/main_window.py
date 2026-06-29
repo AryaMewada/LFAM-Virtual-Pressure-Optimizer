@@ -19,6 +19,7 @@ from PyQt6.QtWidgets import (
     QProgressBar,
     QLabel,
     QPushButton,
+    QStackedWidget,
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
@@ -74,6 +75,15 @@ try:
 except ImportError:
     HelpDialog = None
 
+try:
+    from src.ui.widgets.home_widget import HomeWidget
+    from src.ui.widgets.slice_widget import SliceWidget
+    from src.ui.widgets.slicer_setup_widget import SlicerSetupWidget
+except ImportError:
+    HomeWidget = None
+    SliceWidget = None
+    SlicerSetupWidget = None
+
 # ── Engine imports (graceful degradation) ─────────────────────────────────
 
 try:
@@ -85,6 +95,71 @@ try:
     ENGINE_AVAILABLE = True
 except ImportError:
     ENGINE_AVAILABLE = False
+
+
+class ModuleSwitchWidget(QFrame):
+    """Segmented control switch between Programming and Manufacturing modules."""
+    programming_clicked = pyqtSignal()
+    manufacturing_clicked = pyqtSignal()
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedHeight(36)
+        self.setStyleSheet(f"""
+            QFrame {{
+                background-color: {Theme.BG_TERTIARY};
+                border: 1px solid {Theme.BORDER};
+                border-radius: 18px;
+            }}
+            QPushButton {{
+                color: {Theme.TEXT_MUTED};
+                font-weight: bold;
+                font-size: 13px;
+                border: none;
+                border-radius: 14px;
+                padding: 4px 16px;
+            }}
+            QPushButton:checked {{
+                background-color: {Theme.BG_ELEVATED};
+                color: {Theme.ACCENT_PRIMARY};
+            }}
+        """)
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setSpacing(2)
+        
+        self.prog_btn = QPushButton("Programming")
+        self.prog_btn.setCheckable(True)
+        self.prog_btn.setChecked(True)
+        self.prog_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        
+        self.mfg_btn = QPushButton("Manufacturing")
+        self.mfg_btn.setCheckable(True)
+        self.mfg_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        
+        layout.addWidget(self.prog_btn)
+        layout.addWidget(self.mfg_btn)
+        
+        self.prog_btn.clicked.connect(self._on_prog)
+        self.mfg_btn.clicked.connect(self._on_mfg)
+        
+    def _on_prog(self):
+        self.prog_btn.setChecked(True)
+        self.mfg_btn.setChecked(False)
+        self.programming_clicked.emit()
+        
+    def _on_mfg(self):
+        self.mfg_btn.setChecked(True)
+        self.prog_btn.setChecked(False)
+        self.manufacturing_clicked.emit()
+
+    def set_active(self, module: str):
+        if module == 'programming':
+            self.prog_btn.setChecked(True)
+            self.mfg_btn.setChecked(False)
+        elif module == 'manufacturing':
+            self.mfg_btn.setChecked(True)
+            self.prog_btn.setChecked(False)
 
 
 class ProcessingWorker(QThread):
@@ -297,9 +372,10 @@ class MainWindow(QMainWindow):
         self._pressure_data = None
         self._analysis_stats = None
         self._optimized_data = None
-        self._optimized_gcode = None
+        self.data = {}
         self._material_profile = None
         self._machine_profile = None
+        self.current_machine_name = None
         self._worker = None
 
         # ── Build UI ──────────────────────────────────────────────
@@ -307,6 +383,9 @@ class MainWindow(QMainWindow):
         self._setup_status_bar()
         self._setup_central_widget()
         self._connect_signals()
+        
+        # Initialize default state
+        self._show_home()
 
     # ──────────────────────────────────────────────────────────────
     # Menu Bar
@@ -392,6 +471,60 @@ class MainWindow(QMainWindow):
         """)
         navbar_layout.addWidget(logo_label)
         
+        # Home Button
+        self.home_btn = QPushButton("HOME")
+        self.home_btn.setFixedSize(100, 32)
+        self.home_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.home_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {Theme.BG_TERTIARY};
+                color: {Theme.TEXT_PRIMARY};
+                font-size: 13px;
+                font-weight: bold;
+                border: 1px solid {Theme.BORDER};
+                border-radius: 16px;
+                margin-left: 20px;
+            }}
+            QPushButton:hover {{
+                background-color: {Theme.BG_ELEVATED};
+                border-color: {Theme.TEXT_MUTED};
+            }}
+        """)
+        self.home_btn.hide()  # Hidden by default on Home Screen
+        self.home_btn.clicked.connect(self._show_home)
+        navbar_layout.addWidget(self.home_btn)
+        
+        # Machine Selector Button
+        self.machine_selector_btn = QPushButton("No Machine ▼")
+        self.machine_selector_btn.setFixedSize(160, 32)
+        self.machine_selector_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.machine_selector_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: transparent;
+                color: {Theme.TEXT_SECONDARY};
+                font-size: 13px;
+                font-weight: bold;
+                border: 1px dashed {Theme.BORDER};
+                border-radius: 16px;
+                margin-left: 10px;
+            }}
+            QPushButton:hover {{
+                color: {Theme.TEXT_PRIMARY};
+                border-color: {Theme.TEXT_PRIMARY};
+            }}
+        """)
+        self.machine_selector_btn.hide()
+        # Menu will be assigned dynamically via setMenu()
+        navbar_layout.addWidget(self.machine_selector_btn)
+        
+        # Module Switch
+        self.module_switch = ModuleSwitchWidget()
+        self.module_switch.hide()
+        # Disconnecting the switch routing as per request (does nothing for now)
+        # self.module_switch.programming_clicked.connect(self._show_optimizer)
+        # self.module_switch.manufacturing_clicked.connect(self._show_slicer)
+        navbar_layout.addWidget(self.module_switch)
+        
         navbar_layout.addStretch()
         
         # Help Button
@@ -476,12 +609,38 @@ class MainWindow(QMainWindow):
             
         root_layout.addWidget(navbar)
 
-        # ── Main Content Area ────────────────────────────────────
-        main_content = QWidget()
-        main_layout = QHBoxLayout(main_content)
+        # ── QStackedWidget for Routing ───────────────────────────
+        self.main_stack = QStackedWidget()
+        root_layout.addWidget(self.main_stack)
+        
+        # 1. Home Page
+        if HomeWidget is not None:
+            self.home_page = HomeWidget()
+            self.home_page.slice_requested.connect(self._show_slicer)
+            self.home_page.optimize_requested.connect(self._show_optimizer)
+            self.main_stack.addWidget(self.home_page)
+        
+        # 2. Slicer Setup Page
+        if SlicerSetupWidget is not None:
+            self.slicer_setup_page = SlicerSetupWidget()
+            self.slicer_setup_page.setup_complete.connect(self._show_slicer_3d)
+            self.main_stack.addWidget(self.slicer_setup_page)
+            
+        # 3. Slice Page
+        if SliceWidget is not None:
+            self.slice_page = SliceWidget()
+            self.main_stack.addWidget(self.slice_page)
+        
+        # 3. Main Content Area (Optimizer)
+        self.optimizer_page = QWidget()
+        main_layout = QHBoxLayout(self.optimizer_page)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
-        root_layout.addWidget(main_content)
+        self.main_stack.addWidget(self.optimizer_page)
+        
+        # Set default index to Home if it exists
+        if HomeWidget is not None:
+            self.main_stack.setCurrentWidget(self.home_page)
 
         # ── Left Sidebar ─────────────────────────────────────────
         self.sidebar = QFrame()
@@ -799,6 +958,8 @@ class MainWindow(QMainWindow):
             if hasattr(self, 'optimize_btn'):
                 self.optimize_btn.setEnabled(True)
 
+    # (Removed misplaced navigation methods)
+
             # Update results panel
             if self.results_panel is not None and hasattr(self.results_panel, 'update_results'):
                 # Format modifications to list of dicts
@@ -980,3 +1141,108 @@ class MainWindow(QMainWindow):
             '</ul>'
             '<p>Built with PyQt6</p>',
         )
+
+    # ──────────────────────────────────────────────────────────────
+    # Navigation Routing
+    # ──────────────────────────────────────────────────────────────
+    
+    def _show_home(self):
+        """Switch to the home landing page."""
+        self.home_btn.hide()
+        self.machine_selector_btn.hide()
+        self.module_switch.hide()
+        self.help_btn.hide()
+        self.optimize_btn.hide()
+        self.export_btn.hide()
+        if hasattr(self, 'home_page'):
+            self.main_stack.setCurrentWidget(self.home_page)
+            
+    def _show_optimizer(self):
+        """Switch to the Optimizer module (Programming)."""
+        self.home_btn.show()
+        self.machine_selector_btn.hide()
+        self.module_switch.hide()
+        self.help_btn.show()
+        self.optimize_btn.show()
+        self.export_btn.show()
+        self.main_stack.setCurrentWidget(self.optimizer_page)
+        
+    def _show_slicer(self):
+        """Switch to the Slicer Setup or Slicer View module (Manufacturing)."""
+        self.home_btn.show()
+        # Only show the module switch when in Slicer (Manufacturing) mode
+        self.module_switch.show()
+        self.module_switch.set_active('manufacturing')
+        self.help_btn.show()
+        self.optimize_btn.hide()
+        self.export_btn.hide()
+        
+        if self.current_machine_name and hasattr(self, 'slice_page'):
+            self.machine_selector_btn.show()
+            self._update_machine_menu()
+            self.main_stack.setCurrentWidget(self.slice_page)
+        elif hasattr(self, 'slicer_setup_page'):
+            self.machine_selector_btn.hide()
+            self.slicer_setup_page.refresh_profiles()
+            self.main_stack.setCurrentWidget(self.slicer_setup_page)
+
+    def _update_machine_menu(self):
+        """Update and assign the dropdown menu for machine selection."""
+        from PyQt6.QtWidgets import QMenu
+        from src.profiles.profile_manager import ProfileManager
+        
+        menu = QMenu(self)
+        menu.setStyleSheet(f"""
+            QMenu {{
+                background-color: {Theme.BG_SECONDARY};
+                color: {Theme.TEXT_PRIMARY};
+                border: 1px solid {Theme.BORDER};
+                border-radius: 4px;
+            }}
+            QMenu::item {{
+                padding: 8px 24px 8px 12px;
+            }}
+            QMenu::item:selected {{
+                background-color: {Theme.BG_ELEVATED};
+            }}
+        """)
+        
+        pm = ProfileManager()
+        
+        def switch_machine(name, profile):
+            self.current_machine_name = name
+            self.machine_selector_btn.setText(f"{name} ▼")
+            if hasattr(self, 'slice_page'):
+                bed = profile.get('bed_dimensions', {'x': 300, 'y': 300, 'z': 400})
+                self.slice_page.set_machine_dimensions(bed['x'], bed['y'], bed['z'])
+                
+        for profile in pm.load_machines():
+            name = profile.get('name', 'Unknown')
+            action = menu.addAction(name)
+            action.triggered.connect(lambda checked, n=name, p=profile: switch_machine(n, p))
+            
+        menu.addSeparator()
+        
+        customize_action = menu.addAction("Customize...")
+        customize_action.triggered.connect(self._show_machine_setup)
+        
+        self.machine_selector_btn.setMenu(menu)
+
+    def _show_machine_setup(self):
+        """Force show the machine selection page."""
+        if hasattr(self, 'slicer_setup_page'):
+            self.machine_selector_btn.hide()
+            self.slicer_setup_page.refresh_profiles()
+            self.main_stack.setCurrentWidget(self.slicer_setup_page)
+
+    def _show_slicer_3d(self, w: float, d: float, h: float):
+        """Switch to the actual 3D Slicer view after selecting a machine."""
+        if hasattr(self, 'slicer_setup_page'):
+            self.current_machine_name = self.slicer_setup_page.machine_combo.currentText()
+            self.machine_selector_btn.setText(f"{self.current_machine_name} ▼")
+            
+        self.machine_selector_btn.show()
+        self._update_machine_menu()
+        if hasattr(self, 'slice_page'):
+            self.slice_page.set_machine_dimensions(w, d, h)
+            self.main_stack.setCurrentWidget(self.slice_page)

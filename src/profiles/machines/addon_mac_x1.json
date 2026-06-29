@@ -1,0 +1,15 @@
+{
+  "name": "Addon Mac X1",
+  "id": "addon_mac_x1",
+  "build_volume": {
+    "x": 450.0,
+    "y": 400.0,
+    "z": 287.0
+  },
+  "kinematics": "Cartesian",
+  "extruder_type": "pellet",
+  "heating_zones": 3,
+  "nozzle_diameter": 0.4,
+  "layer_height": 0.2,
+  "extrusion_width": 0.45
+}
