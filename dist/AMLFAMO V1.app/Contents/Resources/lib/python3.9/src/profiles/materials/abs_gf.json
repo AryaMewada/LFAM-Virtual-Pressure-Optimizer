@@ -1,0 +1,38 @@
+{
+  "name": "ABS GF20",
+  "id": "abs_gf",
+  "category": "Engineering",
+  "temperature": {
+    "nozzle": 255,
+    "bed": 105
+  },
+  "pressure_sensitivity": 0.75,
+  "flow_characteristics": {
+    "optimal_flow_rate": 45.0,
+    "max_flow_rate": 100.0,
+    "viscosity_index": 0.85,
+    "melt_flow_index": 6.0
+  },
+  "corner_sensitivity": 0.8,
+  "curve_sensitivity": 0.6,
+  "pressure_decay": 0.75,
+  "vpi_weights": {
+    "flow": 0.25,
+    "speed": 0.15,
+    "corner": 0.25,
+    "curve": 0.1,
+    "history": 0.05,
+    "acceleration": 0.05,
+    "start_stop": 0.1,
+    "density": 0.05
+  },
+  "optimization_defaults": {
+    "corner_slowdown": 80,
+    "curve_adaptation": 70,
+    "start_ramp": 60,
+    "end_taper": 60,
+    "flow_smoothing": 50,
+    "speed_smoothing": 40
+  },
+  "description": "ABS + 20% Glass Fiber. Higher viscosity, more corner sensitive, higher nozzle temp."
+}

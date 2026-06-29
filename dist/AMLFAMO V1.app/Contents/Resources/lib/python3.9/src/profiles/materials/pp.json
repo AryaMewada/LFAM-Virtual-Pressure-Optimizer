@@ -1,0 +1,38 @@
+{
+  "name": "Polypropylene",
+  "id": "pp",
+  "category": "Commodity",
+  "temperature": {
+    "nozzle": 230,
+    "bed": 80
+  },
+  "pressure_sensitivity": 0.4,
+  "flow_characteristics": {
+    "optimal_flow_rate": 70.0,
+    "max_flow_rate": 150.0,
+    "viscosity_index": 0.4,
+    "melt_flow_index": 20.0
+  },
+  "corner_sensitivity": 0.4,
+  "curve_sensitivity": 0.3,
+  "pressure_decay": 0.95,
+  "vpi_weights": {
+    "flow": 0.1,
+    "speed": 0.1,
+    "corner": 0.1,
+    "curve": 0.1,
+    "history": 0.2,
+    "acceleration": 0.15,
+    "start_stop": 0.15,
+    "density": 0.1
+  },
+  "optimization_defaults": {
+    "corner_slowdown": 50,
+    "curve_adaptation": 40,
+    "start_ramp": 30,
+    "end_taper": 30,
+    "flow_smoothing": 25,
+    "speed_smoothing": 20
+  },
+  "description": "Commodity PP. Low viscosity, fast printing, very flexible melt."
+}

@@ -1,0 +1,38 @@
+{
+  "name": "PESU",
+  "id": "pesu",
+  "category": "High-Performance",
+  "temperature": {
+    "nozzle": 380,
+    "bed": 160
+  },
+  "pressure_sensitivity": 0.95,
+  "flow_characteristics": {
+    "optimal_flow_rate": 30.0,
+    "max_flow_rate": 70.0,
+    "viscosity_index": 0.98,
+    "melt_flow_index": 2.0
+  },
+  "corner_sensitivity": 0.95,
+  "curve_sensitivity": 0.9,
+  "pressure_decay": 0.6,
+  "vpi_weights": {
+    "flow": 0.3,
+    "speed": 0.2,
+    "corner": 0.3,
+    "curve": 0.1,
+    "history": 0.05,
+    "acceleration": 0.05,
+    "start_stop": 0.0,
+    "density": 0.0
+  },
+  "optimization_defaults": {
+    "corner_slowdown": 95,
+    "curve_adaptation": 90,
+    "start_ramp": 80,
+    "end_taper": 80,
+    "flow_smoothing": 70,
+    "speed_smoothing": 60
+  },
+  "description": "High-performance PESU. Very high temps, very high viscosity, extremely corner sensitive."
+}

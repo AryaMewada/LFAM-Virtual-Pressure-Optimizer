@@ -1,0 +1,38 @@
+{
+  "name": "Nylon (PA6)",
+  "id": "nylon",
+  "category": "Engineering",
+  "temperature": {
+    "nozzle": 260,
+    "bed": 90
+  },
+  "pressure_sensitivity": 0.5,
+  "flow_characteristics": {
+    "optimal_flow_rate": 60.0,
+    "max_flow_rate": 130.0,
+    "viscosity_index": 0.5,
+    "melt_flow_index": 15.0
+  },
+  "corner_sensitivity": 0.5,
+  "curve_sensitivity": 0.4,
+  "pressure_decay": 0.9,
+  "vpi_weights": {
+    "flow": 0.15,
+    "speed": 0.15,
+    "corner": 0.15,
+    "curve": 0.1,
+    "history": 0.15,
+    "acceleration": 0.1,
+    "start_stop": 0.1,
+    "density": 0.1
+  },
+  "optimization_defaults": {
+    "corner_slowdown": 60,
+    "curve_adaptation": 50,
+    "start_ramp": 40,
+    "end_taper": 40,
+    "flow_smoothing": 35,
+    "speed_smoothing": 25
+  },
+  "description": "Engineering Nylon. Higher temps, moisture sensitive, good flow."
+}

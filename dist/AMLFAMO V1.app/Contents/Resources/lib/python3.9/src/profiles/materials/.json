@@ -1,0 +1,38 @@
+{
+  "name": "",
+  "id": "",
+  "category": "",
+  "description": "",
+  "temperature": {
+    "nozzle": 250,
+    "bed": 0
+  },
+  "pressure_sensitivity": 0.0,
+  "corner_sensitivity": 0.0,
+  "curve_sensitivity": 0.0,
+  "pressure_decay": 0.0,
+  "flow_characteristics": {
+    "optimal_flow_rate": 0.0,
+    "max_flow_rate": 0.0,
+    "viscosity_index": 0.0,
+    "melt_flow_index": 0.0
+  },
+  "vpi_weights": {
+    "flow": 0.0,
+    "speed": 0.0,
+    "corner": 0.0,
+    "curve": 0.0,
+    "history": 0.0,
+    "acceleration": 0.0,
+    "start_stop": 0.0,
+    "density": 0.0
+  },
+  "optimization_defaults": {
+    "corner_slowdown": 0,
+    "curve_adaptation": 0,
+    "start_ramp": 0,
+    "end_taper": 0,
+    "flow_smoothing": 0,
+    "speed_smoothing": 0
+  }
+}

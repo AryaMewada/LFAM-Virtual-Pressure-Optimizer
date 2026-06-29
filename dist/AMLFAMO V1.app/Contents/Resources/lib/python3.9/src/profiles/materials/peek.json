@@ -1,0 +1,38 @@
+{
+  "name": "PEEK",
+  "id": "peek",
+  "category": "High-Performance",
+  "temperature": {
+    "nozzle": 410,
+    "bed": 180
+  },
+  "pressure_sensitivity": 1.0,
+  "flow_characteristics": {
+    "optimal_flow_rate": 25.0,
+    "max_flow_rate": 60.0,
+    "viscosity_index": 1.0,
+    "melt_flow_index": 1.5
+  },
+  "corner_sensitivity": 1.0,
+  "curve_sensitivity": 0.95,
+  "pressure_decay": 0.55,
+  "vpi_weights": {
+    "flow": 0.35,
+    "speed": 0.25,
+    "corner": 0.3,
+    "curve": 0.1,
+    "history": 0.0,
+    "acceleration": 0.0,
+    "start_stop": 0.0,
+    "density": 0.0
+  },
+  "optimization_defaults": {
+    "corner_slowdown": 100,
+    "curve_adaptation": 95,
+    "start_ramp": 85,
+    "end_taper": 85,
+    "flow_smoothing": 80,
+    "speed_smoothing": 70
+  },
+  "description": "High-performance PEEK. Highest temps, highest viscosity, most demanding optimization."
+}
