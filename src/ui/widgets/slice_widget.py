@@ -1,8 +1,8 @@
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 
 from PyQt6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QLabel, QFrame, QPushButton, QSpacerItem, 
-    QSizePolicy, QFileDialog
+    QSizePolicy, QFileDialog, QDialog, QFormLayout, QLineEdit, QDialogButtonBox
 )
 
 from src.ui.theme import Theme
@@ -18,6 +18,38 @@ def make_ring_verts(radius, segments=32):
     y = radius * np.sin(angles)
     z = np.zeros_like(angles)
     return np.column_stack([x, y, z])
+
+class MachineSettingsDialog(QDialog):
+    def __init__(self, parent=None, current_w=400, current_d=400, current_h=400, nozzle_d=5.0):
+        super().__init__(parent)
+        self.setWindowTitle("Machine Settings")
+        self.setStyleSheet(f"background-color: {Theme.BG_SECONDARY}; color: {Theme.TEXT_PRIMARY};")
+        
+        layout = QFormLayout(self)
+        
+        self.w_input = QLineEdit(str(current_w))
+        self.d_input = QLineEdit(str(current_d))
+        self.h_input = QLineEdit(str(current_h))
+        self.nozzle_input = QLineEdit(str(nozzle_d))
+        
+        for inp in [self.w_input, self.d_input, self.h_input, self.nozzle_input]:
+            inp.setStyleSheet(f"background-color: {Theme.BG_TERTIARY}; border: 1px solid {Theme.BORDER}; padding: 4px;")
+            
+        layout.addRow("Bed Width (mm):", self.w_input)
+        layout.addRow("Bed Depth (mm):", self.d_input)
+        layout.addRow("Max Height (mm):", self.h_input)
+        layout.addRow("Nozzle Diameter (mm):", self.nozzle_input)
+        
+        btn_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        btn_box.accepted.connect(self.accept)
+        btn_box.rejected.connect(self.reject)
+        layout.addWidget(btn_box)
+        
+    def get_settings(self):
+        try:
+            return float(self.w_input.text()), float(self.d_input.text()), float(self.h_input.text()), float(self.nozzle_input.text())
+        except ValueError:
+            return 400.0, 400.0, 400.0, 5.0
 
 class SceneGraphItem(QWidget):
     def __init__(self, name, model, canvas, parent=None):
@@ -117,15 +149,15 @@ class TransformGizmo:
         self.mode = 'none'
         
         self.t_axes = {
-            'x': gl.GLLinePlotItem(pos=make_arrow_verts('x', 50), color=(1,0,0,1), width=4, antialias=True, mode='lines'),
-            'y': gl.GLLinePlotItem(pos=make_arrow_verts('y', 50), color=(0,1,0,1), width=4, antialias=True, mode='lines'),
-            'z': gl.GLLinePlotItem(pos=make_arrow_verts('z', 50), color=(0,0,1,1), width=4, antialias=True, mode='lines')
+            'x': gl.GLLinePlotItem(pos=make_arrow_verts('x', 50), color=(1,0,0,1), width=1, antialias=True, mode='lines'),
+            'y': gl.GLLinePlotItem(pos=make_arrow_verts('y', 50), color=(0,1,0,1), width=1, antialias=True, mode='lines'),
+            'z': gl.GLLinePlotItem(pos=make_arrow_verts('z', 50), color=(0,0,1,1), width=1, antialias=True, mode='lines')
         }
         
         self.s_axes = {
-            'x': gl.GLLinePlotItem(pos=np.array([[0,0,0],[50,0,0]]), color=(1,0.5,0.5,1), width=6, antialias=True, mode='lines'),
-            'y': gl.GLLinePlotItem(pos=np.array([[0,0,0],[0,50,0]]), color=(0.5,1,0.5,1), width=6, antialias=True, mode='lines'),
-            'z': gl.GLLinePlotItem(pos=np.array([[0,0,0],[0,0,50]]), color=(0.5,0.5,1,1), width=6, antialias=True, mode='lines')
+            'x': gl.GLLinePlotItem(pos=np.array([[0,0,0],[50,0,0]]), color=(1,0.5,0.5,1), width=1, antialias=True, mode='lines'),
+            'y': gl.GLLinePlotItem(pos=np.array([[0,0,0],[0,50,0]]), color=(0.5,1,0.5,1), width=1, antialias=True, mode='lines'),
+            'z': gl.GLLinePlotItem(pos=np.array([[0,0,0],[0,0,50]]), color=(0.5,0.5,1,1), width=1, antialias=True, mode='lines')
         }
         
         r_verts = make_ring_verts(50.0)
@@ -134,15 +166,21 @@ class TransformGizmo:
         z_ring = r_verts.copy()
         
         self.r_rings = {
-            'x': gl.GLLinePlotItem(pos=x_ring, color=(1,0,0,1), width=4, antialias=True, mode='line_strip'),
-            'y': gl.GLLinePlotItem(pos=y_ring, color=(0,1,0,1), width=4, antialias=True, mode='line_strip'),
-            'z': gl.GLLinePlotItem(pos=z_ring, color=(0,0,1,1), width=4, antialias=True, mode='line_strip')
+            'x': gl.GLLinePlotItem(pos=x_ring, color=(1,0,0,1), width=1, antialias=True, mode='line_strip'),
+            'y': gl.GLLinePlotItem(pos=y_ring, color=(0,1,0,1), width=1, antialias=True, mode='line_strip'),
+            'z': gl.GLLinePlotItem(pos=z_ring, color=(0,0,1,1), width=1, antialias=True, mode='line_strip')
         }
         
         self.all_items = []
+        import OpenGL.GL as ogl
         for d in [self.t_axes, self.s_axes, self.r_rings]:
             for item in d.values():
                 item.setDepthValue(10)
+                item.setGLOptions({
+                    ogl.GL_DEPTH_TEST: False,
+                    ogl.GL_BLEND: True,
+                    'glBlendFunc': (ogl.GL_SRC_ALPHA, ogl.GL_ONE_MINUS_SRC_ALPHA)
+                })
                 self.view.addItem(item)
                 self.all_items.append(item)
                 
@@ -152,15 +190,30 @@ class TransformGizmo:
 
     def set_mode(self, mode):
         self.mode = mode
-        for item in self.all_items:
-            item.setVisible(False)
         
+        # Remove all items from view
+        for item in self.all_items:
+            try:
+                self.view.removeItem(item)
+            except ValueError:
+                pass # Already removed
+                
         if mode == 'translate':
-            for item in self.t_axes.values(): item.setVisible(True)
+            for item in self.t_axes.values(): self.view.addItem(item)
         elif mode == 'scale':
-            for item in self.s_axes.values(): item.setVisible(True)
+            for item in self.s_axes.values(): self.view.addItem(item)
         elif mode == 'rotate':
-            for item in self.r_rings.values(): item.setVisible(True)
+            for item in self.r_rings.values(): self.view.addItem(item)
+            
+    def show(self):
+        self.set_mode(self.mode)
+        
+    def hide(self):
+        for item in self.all_items:
+            try:
+                self.view.removeItem(item)
+            except ValueError:
+                pass
 
     def update_position(self, pos, rot_matrix=None):
         self.pos = pos
@@ -384,6 +437,24 @@ class SliceWidget(QWidget):
         self.expand_btn.hide()
         toolbar_layout.addWidget(self.expand_btn)
         
+        # Machine Settings Button
+        self.settings_btn = QPushButton("⚙")
+        self.settings_btn.setFixedSize(50, 50)
+        self.settings_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.settings_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {Theme.BG_TERTIARY};
+                color: {Theme.TEXT_PRIMARY};
+                border: 1px solid {Theme.BORDER};
+                border-radius: 8px;
+                font-weight: bold;
+                font-size: 20px;
+                margin-bottom: 10px;
+            }}
+            QPushButton:hover {{ background-color: {Theme.BG_ELEVATED}; }}
+        """)
+        self.settings_btn.clicked.connect(self._open_machine_settings)
+        toolbar_layout.addWidget(self.settings_btn)
         self.toolbar_btns = []
         
         # Button 1: Import
@@ -438,12 +509,231 @@ class SliceWidget(QWidget):
         right_title = QLabel("Properties")
         right_title.setStyleSheet(f"color: {Theme.TEXT_PRIMARY}; font-weight: bold; font-size: 16px; border: none;")
         right_layout.addWidget(right_title)
+        
+        # Container for properties
+        self.props_container = QWidget()
+        self.props_layout = QVBoxLayout(self.props_container)
+        self.props_layout.setContentsMargins(0, 10, 0, 0)
+        
+        self.props_container.setStyleSheet(f"""
+            QGroupBox {{ color: {Theme.TEXT_SECONDARY}; font-weight: bold; border: 1px solid {Theme.BORDER}; border-radius: 4px; margin-top: 10px; padding-top: 15px; }}
+            QGroupBox::title {{ subcontrol-origin: margin; left: 10px; top: 0px; }}
+            QLineEdit {{ background-color: {Theme.BG_TERTIARY}; color: {Theme.TEXT_PRIMARY}; border: 1px solid {Theme.BORDER}; border-radius: 4px; padding: 4px; }}
+            QLabel {{ color: {Theme.TEXT_PRIMARY}; border: none; }}
+        """)
+        
+        # Position
+        pos_group = QGroupBox("Position (mm)")
+        pos_layout = QHBoxLayout(pos_group)
+        self.pos_x = QLineEdit(); self.pos_y = QLineEdit(); self.pos_z = QLineEdit()
+        pos_layout.addWidget(QLabel("X:")); pos_layout.addWidget(self.pos_x)
+        pos_layout.addWidget(QLabel("Y:")); pos_layout.addWidget(self.pos_y)
+        pos_layout.addWidget(QLabel("Z:")); pos_layout.addWidget(self.pos_z)
+        self.props_layout.addWidget(pos_group)
+        
+        # Rotation
+        rot_group = QGroupBox("Rotation (°)")
+        rot_layout = QHBoxLayout(rot_group)
+        self.rot_x = QLineEdit(); self.rot_y = QLineEdit(); self.rot_z = QLineEdit()
+        rot_layout.addWidget(QLabel("X:")); rot_layout.addWidget(self.rot_x)
+        rot_layout.addWidget(QLabel("Y:")); rot_layout.addWidget(self.rot_y)
+        rot_layout.addWidget(QLabel("Z:")); rot_layout.addWidget(self.rot_z)
+        self.props_layout.addWidget(rot_group)
+        
+        # Scale
+        scale_group = QGroupBox("Scale (%)")
+        scale_layout = QHBoxLayout(scale_group)
+        self.scale_x = QLineEdit(); self.scale_y = QLineEdit(); self.scale_z = QLineEdit()
+        self.btn_scale_lock = QPushButton("🔒")
+        self.btn_scale_lock.setCheckable(True)
+        self.btn_scale_lock.setChecked(True)
+        self.btn_scale_lock.setFixedWidth(28)
+        self.btn_scale_lock.setStyleSheet(f"background-color: {Theme.BG_TERTIARY}; color: {Theme.TEXT_PRIMARY}; border: 1px solid {Theme.BORDER}; padding: 2px; font-size: 14px;")
+        scale_layout.addWidget(QLabel("X:")); scale_layout.addWidget(self.scale_x)
+        scale_layout.addWidget(QLabel("Y:")); scale_layout.addWidget(self.scale_y)
+        scale_layout.addWidget(QLabel("Z:")); scale_layout.addWidget(self.scale_z)
+        scale_layout.addWidget(self.btn_scale_lock)
+        self.props_layout.addWidget(scale_group)
+        
+        # Dimensions
+        dim_group = QGroupBox("Dimensions (mm)")
+        dim_layout = QVBoxLayout(dim_group)
+        self.dim_label = QLabel("-")
+        dim_layout.addWidget(self.dim_label)
+        self.props_layout.addWidget(dim_group)
+        
+        # Quick Actions
+        action_group = QGroupBox("Quick Actions")
+        action_layout = QHBoxLayout(action_group)
+        self.btn_center = QPushButton("To Centre")
+        self.btn_center.setStyleSheet(f"background-color: {Theme.BG_TERTIARY}; color: {Theme.TEXT_PRIMARY}; border: 1px solid {Theme.BORDER}; padding: 5px;")
+        self.btn_lay_flat = QPushButton("Lay Flat")
+        self.btn_lay_flat.setStyleSheet(f"background-color: {Theme.BG_TERTIARY}; color: {Theme.TEXT_PRIMARY}; border: 1px solid {Theme.BORDER}; padding: 5px;")
+        action_layout.addWidget(self.btn_center)
+        action_layout.addWidget(self.btn_lay_flat)
+        self.props_layout.addWidget(action_group)
+        
+        self.btn_center.clicked.connect(self._center_selected)
+        self.btn_lay_flat.clicked.connect(self._lay_flat_selected)
+        self.btn_scale_lock.toggled.connect(self._on_scale_lock_toggled)
+        
+        self.props_container.hide()
+        right_layout.addWidget(self.props_container)
+        
         right_layout.addStretch()
+        
+        # Connect signals
+        for le in [self.pos_x, self.pos_y, self.pos_z, self.rot_x, self.rot_y, self.rot_z, self.scale_x, self.scale_y, self.scale_z]:
+            le.editingFinished.connect(self._on_properties_edited)
         
         # Add all to main layout
         layout.addWidget(self.left_sidebar)
         layout.addWidget(self.center_view, stretch=1)
         layout.addWidget(self.right_sidebar)
+
+    def update_properties_panel(self, model):
+        import numpy as np
+        if not model:
+            self.props_container.hide()
+            return
+            
+        self.props_container.show()
+        self._blocking_props = True
+        
+        pos = model.pos
+        self.pos_x.setText(f"{pos[0]:.2f}")
+        self.pos_y.setText(f"{pos[1]:.2f}")
+        self.pos_z.setText(f"{pos[2]:.2f}")
+        
+        rot = getattr(model, 'rot_angles', [0.0, 0.0, 0.0])
+        self.rot_x.setText(f"{rot[0]:.1f}")
+        self.rot_y.setText(f"{rot[1]:.1f}")
+        self.rot_z.setText(f"{rot[2]:.1f}")
+        
+        scale = getattr(model, 'scale_vec', [1,1,1])
+        self.scale_x.setText(f"{scale[0]*100:.1f}")
+        self.scale_y.setText(f"{scale[1]*100:.1f}")
+        self.scale_z.setText(f"{scale[2]*100:.1f}")
+        
+        if hasattr(model, 'raw_vertices'):
+            verts = model.raw_vertices
+            scaled_verts = verts * scale
+            min_b = scaled_verts.min(axis=0)
+            max_b = scaled_verts.max(axis=0)
+            dims = max_b - min_b
+            self.dim_label.setText(f"X: {dims[0]:.1f}  Y: {dims[1]:.1f}  Z: {dims[2]:.1f}")
+            
+        self._blocking_props = False
+        
+    def _on_scale_lock_toggled(self, checked):
+        if checked:
+            self.btn_scale_lock.setText("🔒")
+        else:
+            self.btn_scale_lock.setText("🔓")
+        
+    def _on_properties_edited(self):
+        import numpy as np
+        import PyQt6.QtGui as QtGui
+        if getattr(self, '_blocking_props', False) or not self.gl_viewer.selected_model: return
+        try:
+            model = self.gl_viewer.selected_model
+            model.pos = np.array([
+                float(self.pos_x.text()),
+                float(self.pos_y.text()),
+                float(self.pos_z.text())
+            ])
+            
+            # Rotation
+            model.rot_angles = [
+                float(self.rot_x.text()),
+                float(self.rot_y.text()),
+                float(self.rot_z.text())
+            ]
+            new_rot = QtGui.QMatrix4x4()
+            new_rot.rotate(model.rot_angles[0], 1, 0, 0)
+            new_rot.rotate(model.rot_angles[1], 0, 1, 0)
+            new_rot.rotate(model.rot_angles[2], 0, 0, 1)
+            model.rot_matrix = new_rot
+            
+            # Scale
+            new_scale = [
+                float(self.scale_x.text())/100.0,
+                float(self.scale_y.text())/100.0,
+                float(self.scale_z.text())/100.0
+            ]
+            
+            # Proportional scaling logic based on which field was edited
+            if self.btn_scale_lock.isChecked():
+                # See which axis changed relative to the model's current scale
+                old_scale = getattr(model, 'scale_vec', [1,1,1])
+                ratio = 1.0
+                if abs(new_scale[0] - old_scale[0]) > 0.001: ratio = new_scale[0] / old_scale[0] if old_scale[0] != 0 else 1.0
+                elif abs(new_scale[1] - old_scale[1]) > 0.001: ratio = new_scale[1] / old_scale[1] if old_scale[1] != 0 else 1.0
+                elif abs(new_scale[2] - old_scale[2]) > 0.001: ratio = new_scale[2] / old_scale[2] if old_scale[2] != 0 else 1.0
+                
+                if ratio != 1.0:
+                    new_scale = [old_scale[0] * ratio, old_scale[1] * ratio, old_scale[2] * ratio]
+                    
+            model.scale_vec = new_scale
+            
+            self.gl_viewer.model_center = model.pos.copy()
+            self.gl_viewer.apply_transform(model)
+            
+            if self.gl_viewer.interaction_mode != 'none':
+                self.gl_viewer.gizmo.update_position(self.gl_viewer.model_center, model.rot_matrix)
+                
+            self.gl_viewer.update()
+            self.update_properties_panel(model)
+        except ValueError:
+            pass
+            
+    def _center_selected(self):
+        model = self.gl_viewer.selected_model
+        if not model: return
+        model.pos[0] = 0.0
+        model.pos[1] = 0.0
+        self.gl_viewer.model_center = model.pos.copy()
+        self.gl_viewer.apply_transform(model)
+        if self.gl_viewer.interaction_mode != 'none':
+            self.gl_viewer.gizmo.update_position(self.gl_viewer.model_center, model.rot_matrix)
+        self.gl_viewer.update()
+        self.update_properties_panel(model)
+        
+    def _lay_flat_selected(self):
+        model = self.gl_viewer.selected_model
+        if not model: return
+        import numpy as np
+        
+        # We need to find the absolute minimum Z of the transformed vertices and move the model up by that amount
+        verts = model.raw_vertices
+        scale = getattr(model, 'scale_vec', [1,1,1])
+        scaled_verts = verts * scale
+        
+        # Apply rotation
+        import PyQt6.QtGui as QtGui
+        rot_mat = getattr(model, 'rot_matrix', QtGui.QMatrix4x4())
+        
+        # Since PyQt6 QMatrix4x4 map doesn't accept full numpy arrays easily, we map bounding box?
+        # No, a rotated object's lowest point could be any vertex.
+        # Quick hack: we can just use the bounding box of the unrotated model? No, rotation changes Z-min.
+        # We must transform all vertices to find true Z-min.
+        min_z = float('inf')
+        for v in scaled_verts:
+            vec = QtGui.QVector3D(v[0], v[1], v[2])
+            vec = rot_mat.map(vec)
+            if vec.z() < min_z:
+                min_z = vec.z()
+                
+        # The true world min Z is model.pos[2] + min_z
+        # We want world min Z to be 0 -> model.pos[2] + min_z = 0 -> model.pos[2] = -min_z
+        model.pos[2] = -min_z
+        
+        self.gl_viewer.model_center = model.pos.copy()
+        self.gl_viewer.apply_transform(model)
+        if self.gl_viewer.interaction_mode != 'none':
+            self.gl_viewer.gizmo.update_position(self.gl_viewer.model_center, model.rot_matrix)
+        self.gl_viewer.update()
+        self.update_properties_panel(model)
 
     def _style_toolbar_btn(self, btn):
         btn.setFixedSize(50, 50)
@@ -474,10 +764,28 @@ class SliceWidget(QWidget):
         self.left_sidebar.show()
         self.expand_btn.hide()
 
+    def _open_machine_settings(self):
+        dialog = MachineSettingsDialog(
+            self,
+            current_w=getattr(self.gl_viewer, 'machine_w', 400.0),
+            current_d=getattr(self.gl_viewer, 'machine_d', 400.0),
+            current_h=getattr(self.gl_viewer, 'machine_h', 400.0),
+            nozzle_d=getattr(self, 'nozzle_diameter', 5.0)
+        )
+        if dialog.exec():
+            w, d, h, nozzle = dialog.get_settings()
+            self.nozzle_diameter = nozzle
+            self.set_machine_dimensions(w, d, h)
+            self.gl_viewer.update()
+
     def set_machine_dimensions(self, w: float, d: float, h: float):
         """Initializes the OpenGL viewer with a grid based on passed dimensions."""
+        self.gl_viewer.machine_w = w
+        self.gl_viewer.machine_d = d
+        self.gl_viewer.machine_h = h
+        
         # Clear existing grid if any
-        items_to_remove = [item for item in self.gl_viewer.items if isinstance(item, gl.GLGridItem)]
+        items_to_remove = [item for item in self.gl_viewer.items if isinstance(item, (gl.GLGridItem, gl.GLBoxItem, gl.GLLinePlotItem))]
         for item in items_to_remove:
             self.gl_viewer.removeItem(item)
             
@@ -486,6 +794,11 @@ class SliceWidget(QWidget):
         grid.setSpacing(x=w/20, y=d/20)
         grid.translate(w/2, d/2, 0)
         self.gl_viewer.addItem(grid)        
+        
+        import PyQt6.QtGui as QtGui
+        box = gl.GLBoxItem(size=QtGui.QVector3D(w, d, h), color=(1, 1, 1, 0.1))
+        self.gl_viewer.addItem(box)
+        
         cross_len = 10.0
         cross_data = np.array([
             [w/2 - cross_len, d/2, 0.1], [w/2 + cross_len, d/2, 0.1],
@@ -512,9 +825,10 @@ class SliceWidget(QWidget):
         if file_paths:
             import os
             for file_path in file_paths:
+                name = os.path.basename(file_path)
+                self.gl_viewer._current_loading_name = name
                 model = self.gl_viewer.load_stl(file_path)
                 if model:
-                    name = os.path.basename(file_path)
                     sg_item = SceneGraphItem(name, model, self.gl_viewer)
                     self.sg_layout.addWidget(sg_item)
                     sg_item.show()
@@ -559,6 +873,39 @@ class SlicerCanvas3D(gl.GLViewWidget):
             model.setTransform(model.transform() * model.rot_matrix)
         model.scale(model.scale_vec[0], model.scale_vec[1], model.scale_vec[2])
         
+        # Collision Detection against machine bounds
+        import numpy as np
+        out_of_bounds = False
+        if hasattr(self, 'machine_w') and hasattr(model, 'raw_vertices'):
+            verts = model.raw_vertices * getattr(model, 'scale_vec', [1,1,1])
+            import PyQt6.QtGui as QtGui
+            rot_mat = getattr(model, 'rot_matrix', None)
+            
+            if rot_mat is not None:
+                # Extract 3x3 rotation from QMatrix4x4
+                # data() returns a list of 16 floats in column-major order
+                m = rot_mat.data()
+                r = np.array([
+                    [m[0], m[4], m[8]],
+                    [m[1], m[5], m[9]],
+                    [m[2], m[6], m[10]]
+                ])
+                verts = np.dot(verts, r.T)
+                
+            verts = verts + model.pos
+            min_bounds = verts.min(axis=0)
+            max_bounds = verts.max(axis=0)
+            
+            if min_bounds[0] < 0 or max_bounds[0] > self.machine_w or \
+               min_bounds[1] < 0 or max_bounds[1] > self.machine_d or \
+               min_bounds[2] < 0 or max_bounds[2] > self.machine_h:
+                out_of_bounds = True
+                
+        if out_of_bounds:
+            model.opts['color'] = (1.0, 0.2, 0.2, 0.8) # Red tint
+        else:
+            model.opts['color'] = (0.5, 0.7, 0.9, 1.0) # Normal blue
+            
         if model == self.selected_model:
             self.update_selection_outline()
 
@@ -630,17 +977,23 @@ class SlicerCanvas3D(gl.GLViewWidget):
             vertices = vertices - local_center
             mesh_item.setMeshData(vertexes=vertices, faces=faces)
             
-            cx = self.opts.get('center', pyqtgraph.Vector(0,0,0)).x()
-            cy = self.opts.get('center', pyqtgraph.Vector(0,0,0)).y()
+            # Spawn at the absolute center of the machine bed
+            machine_w = getattr(self, 'machine_w', 400.0)
+            machine_d = getattr(self, 'machine_d', 400.0)
+            cx = machine_w / 2.0
+            cy = machine_d / 2.0
             cz = 0.0
             
             height = max_bounds[2] - min_bounds[2]
             
             import PyQt6.QtGui as QtGui
             mesh_item.pos = np.array([cx, cy, cz + height/2.0])
+            mesh_item.rot_angles = [0.0, 0.0, 0.0]
             mesh_item.rot_matrix = QtGui.QMatrix4x4()
             mesh_item.scale_vec = [1.0, 1.0, 1.0]
             mesh_item.raw_vertices = vertices
+            mesh_item.raw_faces = faces
+            mesh_item.file_name = getattr(self, '_current_loading_name', 'Model')
             
             self.model_center = mesh_item.pos.copy()
             self.apply_transform(mesh_item)
@@ -654,6 +1007,59 @@ class SlicerCanvas3D(gl.GLViewWidget):
         except Exception as e:
             print(f"Failed to load STL: {e}")
 
+    def delete_model(self, model):
+        if model in self.active_models:
+            self.active_models.remove(model)
+            self.removeItem(model)
+            if self.selected_model == model:
+                self.select_model(None)
+            
+            # Remove from UI list
+            if hasattr(self, "slice_widget") and hasattr(self.slice_widget, "sg_layout"):
+                for i in reversed(range(self.slice_widget.sg_layout.count())):
+                    item = self.slice_widget.sg_layout.itemAt(i).widget()
+                    if item and item.model == model:
+                        item.setParent(None)
+                        item.deleteLater()
+            self.update()
+
+    def duplicate_model(self, model_data):
+        import numpy as np
+        import pyqtgraph.opengl as gl
+        import PyQt6.QtGui as QtGui
+        
+        mesh_item = gl.GLMeshItem(
+            vertexes=model_data['raw_vertices'],
+            faces=model_data['raw_faces'],
+            color=(0.5, 0.7, 0.9, 1.0),
+            smooth=False, computeNormals=True, drawEdges=True, edgeColor=(0, 0, 0, 1)
+        )
+        mesh_item.setGLOptions('opaque')
+        
+        self.addItem(mesh_item)
+        self.active_models.append(mesh_item)
+        
+        mesh_item.raw_vertices = model_data['raw_vertices']
+        mesh_item.raw_faces = model_data['raw_faces']
+        mesh_item.pos = model_data['pos']
+        mesh_item.rot_angles = model_data.get('rot_angles', [0.0, 0.0, 0.0]).copy()
+        mesh_item.rot_matrix = QtGui.QMatrix4x4(model_data['rot'])
+        mesh_item.scale_vec = list(model_data['scale'])
+        mesh_item.file_name = model_data.get('name', 'Copy')
+        
+        # Add to UI list
+        if hasattr(self, "slice_widget"):
+            from src.ui.widgets.slice_widget import SceneGraphItem
+            sg_item = SceneGraphItem(mesh_item.file_name, mesh_item, self)
+            self.slice_widget.sg_layout.addWidget(sg_item)
+            sg_item.show()
+            self.slice_widget.scene_graph_area.update()
+            
+        self.select_model(mesh_item)
+        self.set_interaction_mode('translate')
+        self.apply_transform(mesh_item)
+        self.update()
+        
     def project_to_screen(self, pos3d):
         import PyQt6.QtGui as QtGui
         vec = QtGui.QVector3D(pos3d[0], pos3d[1], pos3d[2])
@@ -723,11 +1129,36 @@ class SlicerCanvas3D(gl.GLViewWidget):
 
     def keyPressEvent(self, ev):
         super().keyPressEvent(ev)
+        import PyQt6.QtCore as QtCore
+        import PyQt6.QtGui as QtGui
+        import numpy as np
+        
+        # Clipboard handling
+        if ev.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier:
+            if ev.key() == QtCore.Qt.Key.Key_C and self.selected_model:
+                self._clipboard = {
+                    'raw_vertices': self.selected_model.raw_vertices.copy(),
+                    'raw_faces': getattr(self.selected_model, 'raw_faces', None),
+                    'scale': self.selected_model.scale_vec.copy(),
+                    'rot': QtGui.QMatrix4x4(self.selected_model.rot_matrix),
+                    'rot_angles': getattr(self.selected_model, 'rot_angles', [0.0, 0.0, 0.0]).copy(),
+                    'pos': self.selected_model.pos.copy() + np.array([20, 20, 0]),
+                    'name': getattr(self.selected_model, 'file_name', 'Model') + ' (Copy)'
+                }
+                return
+            elif ev.key() == QtCore.Qt.Key.Key_V:
+                if hasattr(self, '_clipboard') and self._clipboard and self._clipboard['raw_faces'] is not None:
+                    self.duplicate_model(self._clipboard)
+                    # Shift next paste
+                    self._clipboard['pos'] += np.array([20, 20, 0])
+                return
+
         if not self.selected_model:
             return
             
-        import PyQt6.QtCore as QtCore
-        if ev.key() == QtCore.Qt.Key.Key_Q:
+        if ev.key() in [QtCore.Qt.Key.Key_Backspace, QtCore.Qt.Key.Key_Delete]:
+            self.delete_model(self.selected_model)
+        elif ev.key() == QtCore.Qt.Key.Key_Q:
             self.set_interaction_mode('translate')
         elif ev.key() == QtCore.Qt.Key.Key_W:
             self.set_interaction_mode('rotate')
@@ -925,24 +1356,41 @@ class SlicerCanvas3D(gl.GLViewWidget):
                         
                     elif self.interaction_mode == 'scale':
                         scale_factor = 1.0 + (move_amount * 0.01)
-                        if self.active_axis == 'x': self.selected_model.scale_vec[0] *= scale_factor
-                        elif self.active_axis == 'y': self.selected_model.scale_vec[1] *= scale_factor
-                        elif self.active_axis == 'z': self.selected_model.scale_vec[2] *= scale_factor
+                        is_locked = False
+                        if hasattr(self, 'slice_widget') and hasattr(self.slice_widget, 'btn_scale_lock'):
+                            is_locked = self.slice_widget.btn_scale_lock.isChecked()
+                            
+                        if is_locked:
+                            self.selected_model.scale_vec[0] *= scale_factor
+                            self.selected_model.scale_vec[1] *= scale_factor
+                            self.selected_model.scale_vec[2] *= scale_factor
+                        else:
+                            if self.active_axis == 'x': self.selected_model.scale_vec[0] *= scale_factor
+                            elif self.active_axis == 'y': self.selected_model.scale_vec[1] *= scale_factor
+                            elif self.active_axis == 'z': self.selected_model.scale_vec[2] *= scale_factor
                         
                 elif self.interaction_mode == 'rotate':
                     base_angle = (diff.x() + diff.y()) * 0.5
-                    new_rot = QtGui.QMatrix4x4()
-                    if self.active_axis == 'x': new_rot.rotate(-base_angle, 1, 0, 0)
-                    elif self.active_axis == 'y': new_rot.rotate(base_angle, 0, 1, 0)
-                    elif self.active_axis == 'z': new_rot.rotate(base_angle, 0, 0, 1)
+                    if not hasattr(self.selected_model, 'rot_angles'):
+                        self.selected_model.rot_angles = [0.0, 0.0, 0.0]
+                        
+                    if self.active_axis == 'x': self.selected_model.rot_angles[0] -= base_angle
+                    elif self.active_axis == 'y': self.selected_model.rot_angles[1] += base_angle
+                    elif self.active_axis == 'z': self.selected_model.rot_angles[2] += base_angle
                     
-                    if hasattr(self.selected_model, 'rot_matrix'):
-                        self.selected_model.rot_matrix = self.selected_model.rot_matrix * new_rot
+                    # Reconstruct rot_matrix from rot_angles
+                    new_rot = QtGui.QMatrix4x4()
+                    new_rot.rotate(self.selected_model.rot_angles[0], 1, 0, 0)
+                    new_rot.rotate(self.selected_model.rot_angles[1], 0, 1, 0)
+                    new_rot.rotate(self.selected_model.rot_angles[2], 0, 0, 1)
+                    self.selected_model.rot_matrix = new_rot
                         
                 self.apply_transform(self.selected_model)
                 rot = getattr(self.selected_model, 'rot_matrix', None)
                 self.gizmo.update_position(self.model_center, rot)
                 self.update()
+                if hasattr(self, 'slice_widget'):
+                    self.slice_widget.update_properties_panel(self.selected_model)
                 return
             # Default Camera Orbit (reached if not interacting with gizmo)
             if (ev.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier):
