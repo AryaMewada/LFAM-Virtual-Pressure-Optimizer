@@ -306,9 +306,6 @@ class SliceWidget(QWidget):
         # Tools Group
         from PyQt6.QtWidgets import QGroupBox, QScrollArea, QWidget
         
-        
-
-        
         # Object List
         self.sg_group = QGroupBox("Objects")
         self.sg_group.setFixedHeight(180)
@@ -331,7 +328,56 @@ class SliceWidget(QWidget):
         
         left_layout.addWidget(self.sg_group)
         
+        # Layer Settings
+        self.settings_group = QGroupBox("Layer Settings")
+        settings_layout = QVBoxLayout(self.settings_group)
+        
+        # Layer Height
+        lh_layout = QHBoxLayout()
+        lh_layout.addWidget(QLabel("Layer Height (mm):"))
+        self.input_layer_height = QLineEdit("0.2")
+        self.input_layer_height.setFixedWidth(60)
+        self.input_layer_height.setStyleSheet(f"background-color: {Theme.BG_TERTIARY}; color: {Theme.TEXT_PRIMARY}; border: 1px solid {Theme.BORDER}; padding: 4px;")
+        lh_layout.addWidget(self.input_layer_height)
+        settings_layout.addLayout(lh_layout)
+        
+        # Initial Layer Height
+        ilh_layout = QHBoxLayout()
+        ilh_layout.addWidget(QLabel("Initial Height (mm):"))
+        self.input_initial_height = QLineEdit("0.2")
+        self.input_initial_height.setFixedWidth(60)
+        self.input_initial_height.setStyleSheet(f"background-color: {Theme.BG_TERTIARY}; color: {Theme.TEXT_PRIMARY}; border: 1px solid {Theme.BORDER}; padding: 4px;")
+        ilh_layout.addWidget(self.input_initial_height)
+        settings_layout.addLayout(ilh_layout)
+        
+        left_layout.addWidget(self.settings_group)
+        
         left_layout.addStretch()
+        
+        # Slice Button
+        self.btn_slice = QPushButton("Slice")
+        self.btn_slice.setFixedHeight(40)
+        self.btn_slice.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {Theme.ACCENT_PRIMARY};
+                color: {Theme.TEXT_PRIMARY};
+                font-weight: bold;
+                font-size: 16px;
+                border: none;
+                border-radius: 4px;
+            }}
+            QPushButton:hover {{
+                background-color: #2563eb;
+            }}
+        """)
+        self.btn_slice.clicked.connect(self._on_slice_clicked)
+        left_layout.addWidget(self.btn_slice)
+        
+        # Slicer Status Label
+        self.slice_status = QLabel("")
+        self.slice_status.setWordWrap(True)
+        self.slice_status.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 12px; margin-top: 5px;")
+        left_layout.addWidget(self.slice_status)
         
         # ==========================================
         # 2. Center Section (Toolbar + 3D Model Viewer)
@@ -834,6 +880,91 @@ class SliceWidget(QWidget):
                     sg_item.show()
             self.scene_graph_area.update()
 
+        
+    def _on_slice_clicked(self):
+        import time
+        import numpy as np
+        import pyqtgraph.opengl as gl
+        from src.slicer.engine import SlicerEngine
+        
+        models = getattr(self.gl_viewer, 'active_models', [])
+        if not models:
+            self.slice_status.setText("No models to slice.")
+            return
+            
+        try:
+            layer_height = float(self.input_layer_height.text())
+            initial_height = float(self.input_initial_height.text())
+        except ValueError:
+            self.slice_status.setText("Invalid slice settings. Must be numbers.")
+            return
+            
+        self.slice_status.setText("Slicing...")
+        self.slice_status.repaint() # Force UI update before blocking thread
+        
+        # In a real app we'd use a QThread. For now, block and slice.
+        engine = SlicerEngine(layer_height=layer_height, initial_layer_height=initial_height)
+        
+        total_layers = 0
+        t0 = time.time()
+        
+        all_lines = []
+        
+        for model in models:
+            # Hide the 3D mesh
+            if hasattr(model, 'mesh_item') and model.mesh_item:
+                model.mesh_item.setVisible(False)
+                
+            # Call slice_model on the engine
+            result = engine.slice_model(
+                model.raw_vertices,
+                model.pos,
+                model.rot_matrix,
+                model.scale_vec
+            )
+            total_layers += len(result.layers)
+            
+            # Extract line segments from the sliced polygons
+            for layer in result.layers:
+                z = layer.z_height
+                for poly in layer.polygons:
+                    pts = poly.points
+                    num_pts = len(pts)
+                    if num_pts < 2:
+                        continue
+                        
+                    # Create 3D points
+                    pts_3d = np.zeros((num_pts, 3))
+                    pts_3d[:, :2] = pts
+                    pts_3d[:, 2] = z
+                    
+                    # Create pairs for mode='lines': [p0, p1, p1, p2, p2, p3, ..., pN, p0]
+                    idx0 = np.arange(num_pts)
+                    idx1 = np.roll(idx0, -1)
+                    
+                    pairs = np.empty((num_pts * 2, 3))
+                    pairs[0::2] = pts_3d[idx0]
+                    pairs[1::2] = pts_3d[idx1]
+                    
+                    all_lines.append(pairs)
+                    
+        # Remove old preview if it exists
+        if hasattr(self, 'slice_preview_item') and self.slice_preview_item:
+            try:
+                self.gl_viewer.removeItem(self.slice_preview_item)
+            except ValueError:
+                pass # Was already removed
+            
+        # Add new preview
+        if all_lines:
+            final_lines = np.vstack(all_lines)
+            # Use neon green color #10b981
+            self.slice_preview_item = gl.GLLinePlotItem(pos=final_lines, color=(0.063, 0.725, 0.506, 1.0), width=1.0, mode='lines', antialias=False)
+            self.gl_viewer.addItem(self.slice_preview_item)
+            
+        t1 = time.time()
+        
+        self.slice_status.setText(f"Successfully sliced {total_layers} layers across {len(models)} models in {t1 - t0:.3f}s.")
 
 class SlicerCanvas3D(gl.GLViewWidget):
     """Custom OpenGL Canvas for Slicer with specific gesture overrides and basic transform logic."""
