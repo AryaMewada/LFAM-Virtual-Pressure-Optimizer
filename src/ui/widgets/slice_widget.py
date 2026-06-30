@@ -91,6 +91,19 @@ class SceneGraphItem(QWidget):
         self.style().drawPrimitive(QStyle.PrimitiveElement.PE_Widget, o, p, self)
 
 
+def make_arrow_verts(axis, length=50, tip_len=10, tip_w=4):
+    import numpy as np
+    lines = []
+    lines.extend([[0,0,0], [length,0,0]])
+    lines.extend([[length,0,0], [length-tip_len, tip_w, 0]])
+    lines.extend([[length,0,0], [length-tip_len, -tip_w, 0]])
+    lines.extend([[length,0,0], [length-tip_len, 0, tip_w]])
+    lines.extend([[length,0,0], [length-tip_len, 0, -tip_w]])
+    verts = np.array(lines)
+    if axis == 'y': verts = verts[:, [1, 0, 2]]
+    elif axis == 'z': verts = verts[:, [2, 1, 0]]
+    return verts
+
 class TransformGizmo:
     """3D Transform Gizmo with X, Y, Z axes for translate, rotate, scale."""
     def __init__(self, view):
@@ -98,15 +111,15 @@ class TransformGizmo:
         self.mode = 'none'
         
         self.t_axes = {
-            'x': gl.GLLinePlotItem(color=(1,0,0,1), width=4, antialias=True),
-            'y': gl.GLLinePlotItem(color=(0,1,0,1), width=4, antialias=True),
-            'z': gl.GLLinePlotItem(color=(0,0,1,1), width=4, antialias=True)
+            'x': gl.GLLinePlotItem(pos=make_arrow_verts('x', 50), color=(1,0,0,1), width=4, antialias=True, mode='lines'),
+            'y': gl.GLLinePlotItem(pos=make_arrow_verts('y', 50), color=(0,1,0,1), width=4, antialias=True, mode='lines'),
+            'z': gl.GLLinePlotItem(pos=make_arrow_verts('z', 50), color=(0,0,1,1), width=4, antialias=True, mode='lines')
         }
         
         self.s_axes = {
-            'x': gl.GLLinePlotItem(color=(1,0.5,0.5,1), width=6, antialias=True),
-            'y': gl.GLLinePlotItem(color=(0.5,1,0.5,1), width=6, antialias=True),
-            'z': gl.GLLinePlotItem(color=(0.5,0.5,1,1), width=6, antialias=True)
+            'x': gl.GLLinePlotItem(pos=np.array([[0,0,0],[50,0,0]]), color=(1,0.5,0.5,1), width=6, antialias=True, mode='lines'),
+            'y': gl.GLLinePlotItem(pos=np.array([[0,0,0],[0,50,0]]), color=(0.5,1,0.5,1), width=6, antialias=True, mode='lines'),
+            'z': gl.GLLinePlotItem(pos=np.array([[0,0,0],[0,0,50]]), color=(0.5,0.5,1,1), width=6, antialias=True, mode='lines')
         }
         
         r_verts = make_ring_verts(50.0)
@@ -128,8 +141,8 @@ class TransformGizmo:
                 self.all_items.append(item)
                 
         self.set_mode('none')
-        self.center = np.array([0.0, 0.0, 0.0])
-        self.size = 100.0
+        self.pos = np.array([0.0, 0.0, 0.0])
+        self.size = 50.0
 
     def set_mode(self, mode):
         self.mode = mode
@@ -143,37 +156,31 @@ class TransformGizmo:
         elif mode == 'rotate':
             for item in self.r_rings.values(): item.setVisible(True)
 
-    def update_position(self, center):
-        self.center = center
-        s = self.size
-        for d in [self.t_axes, self.s_axes]:
-            d['x'].setData(pos=np.array([center, center + [s,0,0]]))
-            d['y'].setData(pos=np.array([center, center + [0,s,0]]))
-            d['z'].setData(pos=np.array([center, center + [0,0,s]]))
-            
-        r_verts = make_ring_verts(s * 0.75)
-        x_ring = r_verts.copy(); x_ring[:, [0, 2]] = x_ring[:, [2, 0]]
-        y_ring = r_verts.copy(); y_ring[:, [1, 2]] = y_ring[:, [2, 1]]
-        z_ring = r_verts.copy()
-        
-        self.r_rings['x'].setData(pos=x_ring + center)
-        self.r_rings['y'].setData(pos=y_ring + center)
-        self.r_rings['z'].setData(pos=z_ring + center)
+    def update_position(self, pos, rot_matrix=None):
+        self.pos = pos
+        for item in self.all_items:
+            item.resetTransform()
+            item.translate(pos[0], pos[1], pos[2])
+            if rot_matrix is not None:
+                item.setTransform(item.transform() * rot_matrix)
 
     def highlight(self, axis):
-        colors = {'x': (1,0,0,1), 'y': (0,1,0,1), 'z': (0,0,1,1)}
-        active_dict = None
-        if self.mode == 'translate': active_dict = self.t_axes
-        elif self.mode == 'scale': active_dict = self.s_axes
-        elif self.mode == 'rotate': active_dict = self.r_rings
+        colors = {
+            'x': (1,0,0,1), 'y': (0,1,0,1), 'z': (0,0,1,1)
+        }
+        h_color = (1,1,0,1)
         
-        if not active_dict: return
-        
-        for k, item in active_dict.items():
-            if axis and k == axis:
-                item.setData(color=(1,1,0,1), width=6)
-            else:
-                item.setData(color=colors[k], width=4)
+        if self.mode == 'translate':
+            for k, item in self.t_axes.items():
+                item.setData(color=h_color if k == axis else colors[k])
+        elif self.mode == 'scale':
+            for k, item in self.s_axes.items():
+                c = colors[k]
+                sc = (c[0]*0.5+0.5, c[1]*0.5+0.5, c[2]*0.5+0.5, 1)
+                item.setData(color=h_color if k == axis else sc)
+        elif self.mode == 'rotate':
+            for k, item in self.r_rings.items():
+                item.setData(color=h_color if k == axis else colors[k])
 
 
 class SliceWidget(QWidget):
@@ -387,7 +394,15 @@ class SliceWidget(QWidget):
         grid.setSize(x=w, y=d)
         grid.setSpacing(x=w/20, y=d/20)
         grid.translate(w/2, d/2, 0)
-        self.gl_viewer.addItem(grid)
+        self.gl_viewer.addItem(grid)        
+        cross_len = 10.0
+        cross_data = np.array([
+            [w/2 - cross_len, d/2, 0.1], [w/2 + cross_len, d/2, 0.1],
+            [w/2, d/2 - cross_len, 0.1], [w/2, d/2 + cross_len, 0.1]
+        ])
+        crosshair = gl.GLLinePlotItem(pos=cross_data, color=(1, 0, 0, 0.8), mode='lines', width=3, antialias=True)
+        crosshair.is_center_mark = True
+        self.gl_viewer.addItem(crosshair)
         
         self.gl_viewer.opts['center'] = pyqtgraph.Vector(w/2, d/2, 0)
         self.gl_viewer.setCameraPosition(distance=max(w,d)*1.5, elevation=30, azimuth=-45)
@@ -432,11 +447,54 @@ class SlicerCanvas3D(gl.GLViewWidget):
         self.interaction_mode = mode
         if mode in ['translate', 'rotate', 'scale'] and self.selected_model:
             self.gizmo.set_mode(mode)
-            self.gizmo.update_position(self.model_center)
+            rot = getattr(self.selected_model, 'rot_matrix', None)
+            self.gizmo.update_position(self.model_center, rot)
         else:
             self.gizmo.set_mode('none')
             self.active_axis = None
         self.update()
+
+
+    def apply_transform(self, model):
+        model.resetTransform()
+        model.translate(model.pos[0], model.pos[1], model.pos[2])
+        if hasattr(model, "rot_matrix"):
+            model.setTransform(model.transform() * model.rot_matrix)
+        model.scale(model.scale_vec[0], model.scale_vec[1], model.scale_vec[2])
+        
+        if model == self.selected_model:
+            self.update_selection_outline()
+
+    def update_selection_outline(self):
+        if hasattr(self, "selection_box"):
+            self.selection_box.setVisible(False)
+        for model in self.active_models:
+            if model == self.selected_model:
+                model.opts["drawEdges"] = True
+                model.opts["edgeColor"] = (1.0, 1.0, 1.0, 1.0)
+            else:
+                model.opts["drawEdges"] = False
+            model.update()
+
+    def select_model(self, model):
+        self.selected_model = model
+        self.update_selection_outline()
+        
+        if model:
+            self.model_center = model.pos.copy()
+            rot = getattr(model, 'rot_matrix', None)
+            self.gizmo.update_position(self.model_center, rot)
+            
+            if self.interaction_mode != "none":
+                self.gizmo.set_mode(self.interaction_mode)
+        else:
+            self.gizmo.set_mode("none")
+            
+        if hasattr(self.parent(), "sg_layout"):
+            for i in range(self.parent().sg_layout.count()):
+                item = self.parent().sg_layout.itemAt(i).widget()
+                if item and hasattr(item, "set_selected"):
+                    item.set_selected(item.model == model)
 
     def load_stl(self, filepath: str):
         """Loads an STL file and adds it to the viewport."""
@@ -467,18 +525,33 @@ class SlicerCanvas3D(gl.GLViewWidget):
             self.active_models.append(mesh_item)
             self.selected_model = mesh_item
             
-            # Center the model on the bed
             min_bounds = vertices.min(axis=0)
             max_bounds = vertices.max(axis=0)
+            local_center = (min_bounds + max_bounds) / 2.0
             
-            delta = -min_bounds
-            mesh_item.translate(delta[0], delta[1], delta[2])
+            # Shift vertices so origin is exactly at the geometric center
+            vertices = vertices - local_center
+            mesh_item.setMeshData(vertexes=vertices, faces=faces)
             
-            self.model_center = (min_bounds + max_bounds)/2.0 + delta
+            cx = self.opts.get('center', pyqtgraph.Vector(0,0,0)).x()
+            cy = self.opts.get('center', pyqtgraph.Vector(0,0,0)).y()
+            cz = 0.0
             
-            if self.interaction_mode == 'translate':
+            height = max_bounds[2] - min_bounds[2]
+            
+            import PyQt6.QtGui as QtGui
+            mesh_item.pos = np.array([cx, cy, cz + height/2.0])
+            mesh_item.rot_matrix = QtGui.QMatrix4x4()
+            mesh_item.scale_vec = [1.0, 1.0, 1.0]
+            mesh_item.raw_vertices = vertices
+            
+            self.model_center = mesh_item.pos.copy()
+            self.apply_transform(mesh_item)
+            
+            if self.interaction_mode != 'none':
+                self.gizmo.set_mode(self.interaction_mode)
                 self.gizmo.set_visible(True)
-                self.gizmo.update_position(self.model_center)
+                self.gizmo.update_position(self.model_center, mesh_item.rot_matrix)
             
         except Exception as e:
             print(f"Failed to load STL: {e}")
@@ -515,6 +588,7 @@ class SlicerCanvas3D(gl.GLViewWidget):
     def mousePressEvent(self, ev):
         super().mousePressEvent(ev)
         import PyQt6.QtCore as QtCore
+        import PyQt6.QtGui as QtGui
         self.active_axis = None
         self.gizmo.highlight(None)
         
@@ -529,11 +603,18 @@ class SlicerCanvas3D(gl.GLViewWidget):
             
             if self.interaction_mode in ['translate', 'scale']:
                 axes_3d = {
-                    'x': self.model_center + [s,0,0],
-                    'y': self.model_center + [0,s,0],
-                    'z': self.model_center + [0,0,s]
+                    'x': np.array([s,0,0]),
+                    'y': np.array([0,s,0]),
+                    'z': np.array([0,0,s])
                 }
-                for k, tip3d in axes_3d.items():
+                for k, local_vec in axes_3d.items():
+                    if hasattr(self.selected_model, 'rot_matrix'):
+                        vec3d = self.selected_model.rot_matrix.map(QtGui.QVector3D(*local_vec))
+                        world_vec = np.array([vec3d.x(), vec3d.y(), vec3d.z()])
+                    else:
+                        world_vec = local_vec
+                    
+                    tip3d = self.model_center + world_vec
                     tip_2d = self.project_to_screen(tip3d)
                     dist = self.point_to_segment_dist(p, center_2d, tip_2d)
                     if dist < best_dist:
@@ -541,8 +622,17 @@ class SlicerCanvas3D(gl.GLViewWidget):
                         best_axis = k
             elif self.interaction_mode == 'rotate':
                 for k, ring_item in self.gizmo.r_rings.items():
-                    pts_3d = ring_item.pos
-                    pts_2d = np.array([self.project_to_screen(pt) for pt in pts_3d])
+                    pts_3d_local = ring_item.pos
+                    pts_3d_world = []
+                    for pt in pts_3d_local:
+                        if hasattr(self.selected_model, 'rot_matrix'):
+                            vec3d = self.selected_model.rot_matrix.map(QtGui.QVector3D(*pt))
+                            world_pt = self.model_center + np.array([vec3d.x(), vec3d.y(), vec3d.z()])
+                        else:
+                            world_pt = self.model_center + pt
+                        pts_3d_world.append(world_pt)
+                        
+                    pts_2d = np.array([self.project_to_screen(pt) for pt in pts_3d_world])
                     dist = self.polyline_dist(p, pts_2d)
                     if dist < best_dist:
                         best_dist = dist
@@ -550,9 +640,76 @@ class SlicerCanvas3D(gl.GLViewWidget):
                         
             self.active_axis = best_axis
             self.gizmo.highlight(self.active_axis)
+            
+        hit_gizmo = (self.active_axis is not None)
+        
+        if not hit_gizmo and ev.button() == QtCore.Qt.MouseButton.LeftButton:
+            lpos = ev.position() if hasattr(ev, "position") else ev.localPos()
+            
+            rect = self.rect()
+            ndc_x = (lpos.x() / rect.width()) * 2.0 - 1.0
+            ndc_y = 1.0 - (lpos.y() / rect.height()) * 2.0
+            
+            vec_near = QtGui.QVector3D(ndc_x, ndc_y, -1.0)
+            vec_far = QtGui.QVector3D(ndc_x, ndc_y, 1.0)
+            
+            view_proj = self.projectionMatrix() * self.viewMatrix()
+            inv_vp, invertible = view_proj.inverted()
+            
+            best_model = None
+            best_dist = float("inf")
+            
+            if invertible:
+                world_near = inv_vp.map(vec_near)
+                world_far = inv_vp.map(vec_far)
+                
+                for model in self.active_models:
+                    if not model.visible(): continue
+                    v = getattr(model, "raw_vertices", model.opts.get("vertexes"))
+                    if v is None: continue
+                    min_b = v.min(axis=0)
+                    max_b = v.max(axis=0)
+                    
+                    mat = QtGui.QMatrix4x4()
+                    mat.translate(model.pos[0], model.pos[1], model.pos[2])
+                    if hasattr(model, "rot_matrix"): mat = mat * model.rot_matrix
+                    mat.scale(model.scale_vec[0], model.scale_vec[1], model.scale_vec[2])
+                    
+                    inv_mat, mat_invertible = mat.inverted()
+                    if not mat_invertible: continue
+                    
+                    local_near = inv_mat.map(world_near)
+                    local_far = inv_mat.map(world_far)
+                    
+                    local_dir = local_far - local_near
+                    local_dir.normalize()
+                    
+                    dx = local_dir.x() if local_dir.x() != 0 else 1e-6
+                    dy = local_dir.y() if local_dir.y() != 0 else 1e-6
+                    dz = local_dir.z() if local_dir.z() != 0 else 1e-6
+                    
+                    t1 = (min_b[0] - local_near.x()) / dx
+                    t2 = (max_b[0] - local_near.x()) / dx
+                    t3 = (min_b[1] - local_near.y()) / dy
+                    t4 = (max_b[1] - local_near.y()) / dy
+                    t5 = (min_b[2] - local_near.z()) / dz
+                    t6 = (max_b[2] - local_near.z()) / dz
+                    
+                    tmin = max(max(min(t1, t2), min(t3, t4)), min(t5, t6))
+                    tmax = min(min(max(t1, t2), max(t3, t4)), max(t5, t6))
+                    
+                    if tmax >= 0 and tmax >= tmin:
+                        if tmin < best_dist:
+                            best_dist = tmin
+                            best_model = model
+            
+            if best_model:
+                self.select_model(best_model)
+            else:
+                self.select_model(None)
+                self.set_interaction_mode("none")
 
     def mouseMoveEvent(self, ev):
-        # Invert the default PyQtGraph orbit movement for standard CAD feel
         lpos = ev.position() if hasattr(ev, 'position') else ev.localPos()
         if self._last_mouse_pos is None:
             self._last_mouse_pos = lpos
@@ -560,61 +717,60 @@ class SlicerCanvas3D(gl.GLViewWidget):
         self._last_mouse_pos = lpos
         
         import PyQt6.QtCore as QtCore
+        import PyQt6.QtGui as QtGui
         if ev.buttons() == QtCore.Qt.MouseButton.LeftButton:
             if self.interaction_mode != 'none' and self.selected_model and self.active_axis:
                 if self.interaction_mode in ['translate', 'scale']:
-                    # Calculate vector
+                    local_axis = QtGui.QVector3D(0,0,0)
+                    if self.active_axis == 'x': local_axis = QtGui.QVector3D(1,0,0)
+                    elif self.active_axis == 'y': local_axis = QtGui.QVector3D(0,1,0)
+                    elif self.active_axis == 'z': local_axis = QtGui.QVector3D(0,0,1)
+                    
+                    if hasattr(self.selected_model, 'rot_matrix'):
+                        world_axis = self.selected_model.rot_matrix.map(local_axis)
+                    else:
+                        world_axis = local_axis
+                        
+                    world_axis_np = np.array([world_axis.x(), world_axis.y(), world_axis.z()])
+                    
                     center_2d = self.project_to_screen(self.model_center)
-                    tip3d = self.model_center.copy()
-                    if self.active_axis == 'x': tip3d[0] += 1
-                    elif self.active_axis == 'y': tip3d[1] += 1
-                    elif self.active_axis == 'z': tip3d[2] += 1
+                    tip3d = self.model_center + world_axis_np
                     tip_2d = self.project_to_screen(tip3d)
                     
                     axis_vec_2d = tip_2d - center_2d
                     norm = np.linalg.norm(axis_vec_2d)
-                    if norm > 0:
-                        axis_vec_2d /= norm
-                        
+                    if norm > 0: axis_vec_2d /= norm
+                    
                     mouse_diff = np.array([diff.x(), diff.y()])
                     move_amount = np.dot(mouse_diff, axis_vec_2d)
                     
                     if self.interaction_mode == 'translate':
                         move_amount *= 0.5
-                        delta = [0.0, 0.0, 0.0]
-                        if self.active_axis == 'x': delta[0] = move_amount
-                        elif self.active_axis == 'y': delta[1] = move_amount
-                        elif self.active_axis == 'z': delta[2] = move_amount
-                        
-                        self.selected_model.translate(*delta)
-                        self.model_center += delta
-                        self.gizmo.update_position(self.model_center)
+                        delta = world_axis_np * move_amount
+                        self.selected_model.pos += delta
+                        self.model_center = self.selected_model.pos.copy()
                         
                     elif self.interaction_mode == 'scale':
                         scale_factor = 1.0 + (move_amount * 0.01)
-                        # Pivot math: translate to origin, scale, translate back
-                        self.selected_model.translate(-self.model_center[0], -self.model_center[1], -self.model_center[2])
-                        sx = scale_factor if self.active_axis == 'x' else 1.0
-                        sy = scale_factor if self.active_axis == 'y' else 1.0
-                        sz = scale_factor if self.active_axis == 'z' else 1.0
-                        self.selected_model.scale(sx, sy, sz)
-                        self.selected_model.translate(self.model_center[0], self.model_center[1], self.model_center[2])
+                        if self.active_axis == 'x': self.selected_model.scale_vec[0] *= scale_factor
+                        elif self.active_axis == 'y': self.selected_model.scale_vec[1] *= scale_factor
+                        elif self.active_axis == 'z': self.selected_model.scale_vec[2] *= scale_factor
                         
                 elif self.interaction_mode == 'rotate':
-                    # Rotate around axis
                     angle = (diff.x() + diff.y()) * 0.5
-                    ax, ay, az = 0, 0, 0
-                    if self.active_axis == 'x': ax = 1
-                    elif self.active_axis == 'y': ay = 1
-                    elif self.active_axis == 'z': az = 1
+                    new_rot = QtGui.QMatrix4x4()
+                    if self.active_axis == 'x': new_rot.rotate(angle, 1, 0, 0)
+                    elif self.active_axis == 'y': new_rot.rotate(angle, 0, 1, 0)
+                    elif self.active_axis == 'z': new_rot.rotate(angle, 0, 0, 1)
                     
-                    self.selected_model.translate(-self.model_center[0], -self.model_center[1], -self.model_center[2])
-                    self.selected_model.rotate(angle, ax, ay, az)
-                    self.selected_model.translate(self.model_center[0], self.model_center[1], self.model_center[2])
-                    
+                    if hasattr(self.selected_model, 'rot_matrix'):
+                        self.selected_model.rot_matrix = self.selected_model.rot_matrix * new_rot
+                        
+                self.apply_transform(self.selected_model)
+                rot = getattr(self.selected_model, 'rot_matrix', None)
+                self.gizmo.update_position(self.model_center, rot)
                 self.update()
                 return
-
             # Default Camera Orbit (reached if not interacting with gizmo)
             if (ev.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier):
                 self.pan(diff.x(), diff.y(), 0, relative='view')
