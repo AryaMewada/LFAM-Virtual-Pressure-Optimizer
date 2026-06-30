@@ -17,6 +17,80 @@ def make_ring_verts(radius, segments=32):
     z = np.zeros_like(angles)
     return np.column_stack([x, y, z])
 
+class SceneGraphItem(QWidget):
+    def __init__(self, name, model, canvas, parent=None):
+        super().__init__(parent)
+        self.model = model
+        self.canvas = canvas
+        self.setFixedHeight(36)
+        self.setMinimumHeight(36)
+        
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(5, 2, 5, 2)
+        
+        from src.ui.theme import Theme
+        self.name_lbl = QLabel(name)
+        self.name_lbl.setStyleSheet(f"color: {Theme.TEXT_PRIMARY};")
+        
+        from PyQt6.QtWidgets import QSizePolicy
+        self.name_lbl.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        
+        layout.addWidget(self.name_lbl, stretch=1)
+        
+        self.hide_btn = QPushButton("Hide")
+        self.hide_btn.setFixedSize(40, 24)
+        self.hide_btn.setCheckable(True)
+        self.hide_btn.clicked.connect(self._toggle_hide)
+        layout.addWidget(self.hide_btn)
+        
+        self.reset_btn = QPushButton("Reset")
+        self.reset_btn.setFixedSize(50, 24)
+        self.reset_btn.clicked.connect(self._reset)
+        layout.addWidget(self.reset_btn)
+        self.set_selected(False)
+
+    def set_selected(self, selected: bool):
+        from src.ui.theme import Theme
+        bg_color = Theme.ACCENT_PRIMARY if selected else Theme.BG_TERTIARY
+        self.setStyleSheet(f"""
+            SceneGraphItem {{
+                background-color: {bg_color};
+                border-radius: 4px;
+            }}
+            SceneGraphItem:hover {{
+                background-color: {Theme.BG_ELEVATED};
+            }}
+            QPushButton {{
+                background: transparent;
+                border: 1px solid {Theme.BORDER};
+                border-radius: 3px;
+            }}
+            QPushButton:hover {{
+                background: {Theme.BG_ELEVATED};
+            }}
+        """)
+
+    def _toggle_hide(self):
+        self.model.setVisible(not self.hide_btn.isChecked())
+        self.canvas.update()
+
+    def _reset(self):
+        self.model.pos = np.array([self.canvas.opts["center"].x(), self.canvas.opts["center"].y(), self.model.pos[2]])
+        import PyQt6.QtGui as QtGui
+        self.model.rot_matrix = QtGui.QMatrix4x4()
+        self.model.scale_vec = [1.0, 1.0, 1.0]
+        self.canvas.apply_transform(self.model)
+        self.canvas.update()
+
+    def paintEvent(self, pe):
+        from PyQt6.QtWidgets import QStyleOption, QStyle
+        from PyQt6.QtGui import QPainter
+        o = QStyleOption()
+        o.initFrom(self)
+        p = QPainter(self)
+        self.style().drawPrimitive(QStyle.PrimitiveElement.PE_Widget, o, p, self)
+
+
 class TransformGizmo:
     """3D Transform Gizmo with X, Y, Z axes for translate, rotate, scale."""
     def __init__(self, view):
@@ -319,14 +393,22 @@ class SliceWidget(QWidget):
         self.gl_viewer.setCameraPosition(distance=max(w,d)*1.5, elevation=30, azimuth=-45)
 
     def _on_import_clicked(self):
-        file_path, _ = QFileDialog.getOpenFileName(
+        file_paths, _ = QFileDialog.getOpenFileNames(
             self,
-            "Import 3D Model",
+            "Import 3D Models",
             "",
             "STL Files (*.stl);;All Files (*)"
         )
-        if file_path:
-            self.gl_viewer.load_stl(file_path)
+        if file_paths:
+            import os
+            for file_path in file_paths:
+                model = self.gl_viewer.load_stl(file_path)
+                if model:
+                    name = os.path.basename(file_path)
+                    sg_item = SceneGraphItem(name, model, self.gl_viewer)
+                    self.sg_layout.addWidget(sg_item)
+                    sg_item.show()
+            self.scene_graph_area.update()
 
 
 class SlicerCanvas3D(gl.GLViewWidget):

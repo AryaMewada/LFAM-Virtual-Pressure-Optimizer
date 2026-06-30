@@ -460,7 +460,7 @@ class MainWindow(QMainWindow):
         navbar_layout = QHBoxLayout(navbar)
         navbar_layout.setContentsMargins(20, 0, 20, 0)
         
-        logo_label = QLabel("ADDON MAC LFAM OPTIMIZER")
+        logo_label = QLabel("AMLFAMO")
         logo_label.setStyleSheet(f"""
             color: {Theme.TEXT_PRIMARY}; 
             font-size: 18pt; 
@@ -1218,6 +1218,8 @@ class MainWindow(QMainWindow):
                 
         for profile in pm.load_machines():
             name = profile.get('name', 'Unknown')
+            if hasattr(self, 'current_machine_name') and name == self.current_machine_name:
+                continue
             action = menu.addAction(name)
             action.triggered.connect(lambda checked, n=name, p=profile: switch_machine(n, p))
             
