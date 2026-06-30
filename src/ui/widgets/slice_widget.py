@@ -1,8 +1,10 @@
+from PyQt6.QtCore import Qt
+
 from PyQt6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QLabel, QFrame, QPushButton, QSpacerItem, 
     QSizePolicy, QFileDialog
 )
-from PyQt6.QtCore import Qt
+
 from src.ui.theme import Theme
 
 import pyqtgraph
@@ -243,6 +245,35 @@ class SliceWidget(QWidget):
         left_header_layout.addWidget(self.collapse_btn)
         
         left_layout.addLayout(left_header_layout)
+        
+        # Tools Group
+        from PyQt6.QtWidgets import QGroupBox, QScrollArea, QWidget
+        
+        
+
+        
+        # Object List
+        self.sg_group = QGroupBox("Objects")
+        self.sg_group.setFixedHeight(180)
+        sg_group_layout = QVBoxLayout(self.sg_group)
+        
+        self.scene_graph_area = QScrollArea()
+        self.scene_graph_area.setWidgetResizable(True)
+        self.scene_graph_area.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        
+        self.sg_content = QWidget()
+        self.sg_content.setObjectName("sg_content")
+        self.sg_content.setStyleSheet("QWidget#sg_content { background: transparent; }")
+        
+        self.sg_layout = QVBoxLayout(self.sg_content)
+        self.sg_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.sg_layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.scene_graph_area.setWidget(self.sg_content)
+        sg_group_layout.addWidget(self.scene_graph_area)
+        
+        left_layout.addWidget(self.sg_group)
+        
         left_layout.addStretch()
         
         # ==========================================
@@ -550,8 +581,9 @@ class SlicerCanvas3D(gl.GLViewWidget):
             
             if self.interaction_mode != 'none':
                 self.gizmo.set_mode(self.interaction_mode)
-                self.gizmo.set_visible(True)
                 self.gizmo.update_position(self.model_center, mesh_item.rot_matrix)
+                
+            return mesh_item
             
         except Exception as e:
             print(f"Failed to load STL: {e}")
