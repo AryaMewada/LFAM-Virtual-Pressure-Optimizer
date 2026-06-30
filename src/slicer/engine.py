@@ -6,11 +6,14 @@ from .types import SliceLayer, SliceResult
 from .mesh_prep import prepare_mesh_for_slicing, get_mesh_z_bounds
 from .intersection import slice_mesh_at_z
 from .stitcher import stitch_segments_to_polygons
+from .perimeter import generate_perimeters
 
 class SlicerEngine:
-    def __init__(self, layer_height: float = 0.2, initial_layer_height: float = 0.2):
+    def __init__(self, layer_height: float = 0.2, initial_layer_height: float = 0.2, extrusion_width: float = 0.6, wall_count: int = 2):
         self.layer_height = layer_height
         self.initial_layer_height = initial_layer_height
+        self.extrusion_width = extrusion_width
+        self.wall_count = wall_count
         
     def slice_model(self, raw_vertices: np.ndarray, pos: np.ndarray, rot_matrix, scale: list) -> SliceResult:
         """
@@ -33,9 +36,6 @@ class SlicerEngine:
         # 2. Get bounds
         z_min, z_max = get_mesh_z_bounds(vertices)
         
-        # If the object is floating or sunken, we usually slice from Z=0 upwards in the real world
-        # For a robust slicer, we slice from max(0.0, z_min).
-        # Let's start at Z = initial_layer_height
         current_z = max(0.0, z_min) + self.initial_layer_height
         
         result = SliceResult()
@@ -48,8 +48,11 @@ class SlicerEngine:
             # 4. Stitch segments
             polygons = stitch_segments_to_polygons(segments)
             
-            # Store layer (even if empty, maybe useful for debugging)
-            result.layers.append(SliceLayer(z_height=current_z, polygons=polygons))
+            # 5. Generate Perimeters (Walls)
+            perimeters = generate_perimeters(polygons, self.extrusion_width, self.wall_count)
+            
+            # Store layer
+            result.layers.append(SliceLayer(z_height=current_z, polygons=polygons, perimeters=perimeters))
             
             current_z += self.layer_height
             layer_count += 1

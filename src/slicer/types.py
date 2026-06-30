@@ -13,6 +13,7 @@ class SliceLayer:
     """Represents all polygons at a specific Z height."""
     z_height: float
     polygons: List[Polygon] = field(default_factory=list)
+    perimeters: List[Polygon] = field(default_factory=list)
 
 @dataclass
 class SliceResult:

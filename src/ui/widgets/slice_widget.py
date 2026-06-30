@@ -350,6 +350,24 @@ class SliceWidget(QWidget):
         ilh_layout.addWidget(self.input_initial_height)
         settings_layout.addLayout(ilh_layout)
         
+        # Extrusion Width
+        ew_layout = QHBoxLayout()
+        ew_layout.addWidget(QLabel("Extrusion Width (mm):"))
+        self.input_extrusion_width = QLineEdit("0.6")
+        self.input_extrusion_width.setFixedWidth(60)
+        self.input_extrusion_width.setStyleSheet(f"background-color: {Theme.BG_TERTIARY}; color: {Theme.TEXT_PRIMARY}; border: 1px solid {Theme.BORDER}; padding: 4px;")
+        ew_layout.addWidget(self.input_extrusion_width)
+        settings_layout.addLayout(ew_layout)
+        
+        # Wall Count
+        wc_layout = QHBoxLayout()
+        wc_layout.addWidget(QLabel("Wall Count:"))
+        self.input_wall_count = QLineEdit("2")
+        self.input_wall_count.setFixedWidth(60)
+        self.input_wall_count.setStyleSheet(f"background-color: {Theme.BG_TERTIARY}; color: {Theme.TEXT_PRIMARY}; border: 1px solid {Theme.BORDER}; padding: 4px;")
+        wc_layout.addWidget(self.input_wall_count)
+        settings_layout.addLayout(wc_layout)
+        
         left_layout.addWidget(self.settings_group)
         
         left_layout.addStretch()
@@ -895,6 +913,8 @@ class SliceWidget(QWidget):
         try:
             layer_height = float(self.input_layer_height.text())
             initial_height = float(self.input_initial_height.text())
+            extrusion_width = float(self.input_extrusion_width.text())
+            wall_count = int(self.input_wall_count.text())
         except ValueError:
             self.slice_status.setText("Invalid slice settings. Must be numbers.")
             return
@@ -903,7 +923,12 @@ class SliceWidget(QWidget):
         self.slice_status.repaint() # Force UI update before blocking thread
         
         # In a real app we'd use a QThread. For now, block and slice.
-        engine = SlicerEngine(layer_height=layer_height, initial_layer_height=initial_height)
+        engine = SlicerEngine(
+            layer_height=layer_height, 
+            initial_layer_height=initial_height,
+            extrusion_width=extrusion_width,
+            wall_count=wall_count
+        )
         
         total_layers = 0
         t0 = time.time()
@@ -911,9 +936,9 @@ class SliceWidget(QWidget):
         all_lines = []
         
         for model in models:
-            # Hide the 3D mesh
-            if hasattr(model, 'mesh_item') and model.mesh_item:
-                model.mesh_item.setVisible(False)
+            # Hide the 3D mesh (model is the GLMeshItem itself)
+            if hasattr(model, 'setVisible'):
+                model.setVisible(False)
                 
             # Call slice_model on the engine
             result = engine.slice_model(
@@ -927,7 +952,7 @@ class SliceWidget(QWidget):
             # Extract line segments from the sliced polygons
             for layer in result.layers:
                 z = layer.z_height
-                for poly in layer.polygons:
+                for poly in layer.perimeters:
                     pts = poly.points
                     num_pts = len(pts)
                     if num_pts < 2:
