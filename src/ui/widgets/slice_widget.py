@@ -51,6 +51,10 @@ class SceneGraphItem(QWidget):
         layout.addWidget(self.reset_btn)
         self.set_selected(False)
 
+    def mousePressEvent(self, event):
+        super().mousePressEvent(event)
+        self.canvas.select_model(self.model)
+
     def set_selected(self, selected: bool):
         from src.ui.theme import Theme
         bg_color = Theme.ACCENT_PRIMARY if selected else Theme.BG_TERTIARY
@@ -292,6 +296,7 @@ class SliceWidget(QWidget):
         
         # Main Viewer Area (Custom OpenGL Canvas)
         self.gl_viewer = SlicerCanvas3D()
+        self.gl_viewer.slice_widget = self
         self.gl_viewer.setBackgroundColor(Theme.BG_PRIMARY)
         center_layout.addWidget(self.gl_viewer, stretch=1)
 
@@ -462,6 +467,8 @@ class SlicerCanvas3D(gl.GLViewWidget):
     
     def __init__(self, parent=None):
         super().__init__(parent)
+        from PyQt6.QtCore import Qt
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self._last_mouse_pos = None
         self.interaction_mode = 'none' # 'none', 'translate', 'rotate', 'scale'
         self.active_models = []
@@ -521,9 +528,9 @@ class SlicerCanvas3D(gl.GLViewWidget):
         else:
             self.gizmo.set_mode("none")
             
-        if hasattr(self.parent(), "sg_layout"):
-            for i in range(self.parent().sg_layout.count()):
-                item = self.parent().sg_layout.itemAt(i).widget()
+        if hasattr(self, "slice_widget") and hasattr(self.slice_widget, "sg_layout"):
+            for i in range(self.slice_widget.sg_layout.count()):
+                item = self.slice_widget.sg_layout.itemAt(i).widget()
                 if item and hasattr(item, "set_selected"):
                     item.set_selected(item.model == model)
 
@@ -616,6 +623,19 @@ class SlicerCanvas3D(gl.GLViewWidget):
         projs = pts_2d[:-1] + t[:, None] * diffs
         dists = np.linalg.norm(p - projs, axis=1)
         return np.min(dists)
+
+    def keyPressEvent(self, ev):
+        super().keyPressEvent(ev)
+        if not self.selected_model:
+            return
+            
+        import PyQt6.QtCore as QtCore
+        if ev.key() == QtCore.Qt.Key.Key_Q:
+            self.set_interaction_mode('translate')
+        elif ev.key() == QtCore.Qt.Key.Key_W:
+            self.set_interaction_mode('rotate')
+        elif ev.key() == QtCore.Qt.Key.Key_E:
+            self.set_interaction_mode('scale')
 
     def mousePressEvent(self, ev):
         super().mousePressEvent(ev)
@@ -789,11 +809,11 @@ class SlicerCanvas3D(gl.GLViewWidget):
                         elif self.active_axis == 'z': self.selected_model.scale_vec[2] *= scale_factor
                         
                 elif self.interaction_mode == 'rotate':
-                    angle = (diff.x() + diff.y()) * 0.5
+                    base_angle = (diff.x() + diff.y()) * 0.5
                     new_rot = QtGui.QMatrix4x4()
-                    if self.active_axis == 'x': new_rot.rotate(angle, 1, 0, 0)
-                    elif self.active_axis == 'y': new_rot.rotate(angle, 0, 1, 0)
-                    elif self.active_axis == 'z': new_rot.rotate(angle, 0, 0, 1)
+                    if self.active_axis == 'x': new_rot.rotate(-base_angle, 1, 0, 0)
+                    elif self.active_axis == 'y': new_rot.rotate(base_angle, 0, 1, 0)
+                    elif self.active_axis == 'z': new_rot.rotate(base_angle, 0, 0, 1)
                     
                     if hasattr(self.selected_model, 'rot_matrix'):
                         self.selected_model.rot_matrix = self.selected_model.rot_matrix * new_rot
