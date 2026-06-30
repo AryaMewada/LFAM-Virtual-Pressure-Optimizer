@@ -300,6 +300,61 @@ class SliceWidget(QWidget):
         self.gl_viewer.setBackgroundColor(Theme.BG_PRIMARY)
         center_layout.addWidget(self.gl_viewer, stretch=1)
 
+        # Perspective Toggle (P)
+        self.btn_ortho = QPushButton("P", self.gl_viewer)
+        self.btn_ortho.setFixedSize(30, 30)
+        self.btn_ortho.setCheckable(True)
+        self.btn_ortho.setToolTip("Toggle Orthographic / Perspective")
+        self.btn_ortho.setStyleSheet("""
+            QPushButton { background: #333333; color: white; border: 1px solid #555; border-radius: 15px; font-weight: bold; }
+            QPushButton:checked { background: #0078D7; }
+        """)
+        self.btn_ortho.clicked.connect(self._toggle_ortho)
+        
+
+        
+        # Navigation Cube (2D Unfolded)
+        self.nav_overlay = QWidget(self.gl_viewer)
+        self.nav_overlay.setStyleSheet("""
+            QPushButton { background: #333333; color: white; border: 1px solid #555; font-size: 10px; border-radius: 2px; }
+            QPushButton:hover { background: #555555; }
+        """)
+        from PyQt6.QtWidgets import QGridLayout
+        nav_layout = QGridLayout(self.nav_overlay)
+        nav_layout.setContentsMargins(0,0,0,0)
+        nav_layout.setSpacing(2)
+        
+        btn_top = QPushButton("Top"); btn_top.setFixedSize(30, 30)
+        btn_bottom = QPushButton("Bot"); btn_bottom.setFixedSize(30, 30)
+        btn_left = QPushButton("L"); btn_left.setFixedSize(30, 30)
+        btn_right = QPushButton("R"); btn_right.setFixedSize(30, 30)
+        btn_front = QPushButton("F"); btn_front.setFixedSize(30, 30)
+        btn_back = QPushButton("B"); btn_back.setFixedSize(30, 30)
+        
+        nav_layout.addWidget(btn_top, 0, 1)
+        nav_layout.addWidget(btn_left, 1, 0)
+        nav_layout.addWidget(btn_front, 1, 1)
+        nav_layout.addWidget(btn_right, 1, 2)
+        nav_layout.addWidget(btn_back, 1, 3)
+        nav_layout.addWidget(btn_bottom, 2, 1)
+        self.nav_overlay.resize(self.nav_overlay.sizeHint())
+        
+        btn_top.clicked.connect(lambda: self.gl_viewer.snap_camera('Top'))
+        btn_bottom.clicked.connect(lambda: self.gl_viewer.snap_camera('Bottom'))
+        btn_front.clicked.connect(lambda: self.gl_viewer.snap_camera('Front'))
+        btn_back.clicked.connect(lambda: self.gl_viewer.snap_camera('Back'))
+        btn_left.clicked.connect(lambda: self.gl_viewer.snap_camera('Left'))
+        btn_right.clicked.connect(lambda: self.gl_viewer.snap_camera('Right'))
+
+        # Bind resize event to keep overlays in corners
+        original_resize = self.gl_viewer.resizeEvent
+        def new_resize(ev):
+            original_resize(ev)
+            w, h = ev.size().width(), ev.size().height()
+            self.btn_ortho.move(w - 40, 10)
+            self.nav_overlay.move(w - self.nav_overlay.width() - 10, h - self.nav_overlay.height() - 10)
+        self.gl_viewer.resizeEvent = new_resize
+
         # Vertical Toolbar Overlay Layout
         self.toolbar_container = QWidget(self.gl_viewer)
         self.toolbar_container.setStyleSheet("background: transparent;")
@@ -442,6 +497,10 @@ class SliceWidget(QWidget):
         
         self.gl_viewer.opts['center'] = pyqtgraph.Vector(w/2, d/2, 0)
         self.gl_viewer.setCameraPosition(distance=max(w,d)*1.5, elevation=30, azimuth=-45)
+
+    def _toggle_ortho(self, checked):
+        self.gl_viewer.is_ortho = checked
+        self.gl_viewer.update()
 
     def _on_import_clicked(self):
         file_paths, _ = QFileDialog.getOpenFileNames(
@@ -624,6 +683,44 @@ class SlicerCanvas3D(gl.GLViewWidget):
         dists = np.linalg.norm(p - projs, axis=1)
         return np.min(dists)
 
+    def projectionMatrix(self, region=None):
+        import PyQt6.QtGui as QtGui
+        from math import tan, radians
+        
+        if not getattr(self, 'is_ortho', False):
+            return super().projectionMatrix(region)
+            
+        if region is None:
+            region = (0, 0, self.deviceWidth(), self.deviceHeight())
+        
+        x0, y0, w, h = self.getViewport()
+        dist = self.opts['distance']
+        
+        aspect = w / h if h > 0 else 1.0
+        box_h = dist * 1.15
+        box_w = box_h * aspect
+        
+        left = -box_w/2
+        right = box_w/2
+        bottom = -box_h/2
+        top = box_h/2
+        
+        nearClip = dist * 0.001
+        farClip = dist * 1000.
+        
+        tr = QtGui.QMatrix4x4()
+        tr.ortho(left, right, bottom, top, nearClip, farClip)
+        return tr
+        
+    def snap_camera(self, view_name):
+        d = self.opts['distance']
+        if view_name == 'Top': self.setCameraPosition(distance=d, elevation=90, azimuth=-90)
+        elif view_name == 'Bottom': self.setCameraPosition(distance=d, elevation=-90, azimuth=-90)
+        elif view_name == 'Front': self.setCameraPosition(distance=d, elevation=0, azimuth=-90)
+        elif view_name == 'Back': self.setCameraPosition(distance=d, elevation=0, azimuth=90)
+        elif view_name == 'Left': self.setCameraPosition(distance=d, elevation=0, azimuth=180)
+        elif view_name == 'Right': self.setCameraPosition(distance=d, elevation=0, azimuth=0)
+
     def keyPressEvent(self, ev):
         super().keyPressEvent(ev)
         if not self.selected_model:
@@ -761,6 +858,30 @@ class SlicerCanvas3D(gl.GLViewWidget):
                 self.select_model(None)
                 self.set_interaction_mode("none")
 
+    def event(self, ev):
+        import PyQt6.QtCore as QtCore
+        if ev.type() == QtCore.QEvent.Type.NativeGesture:
+            if ev.gestureType() == QtCore.Qt.NativeGestureType.ZoomNativeGesture:
+                self.opts['distance'] *= (1.0 - ev.value())
+                self.update()
+                return True
+        return super().event(ev)
+
+    def wheelEvent(self, ev):
+        px = ev.pixelDelta()
+        if not px.isNull():
+            self.pan(px.x(), px.y(), 0, relative='view')
+            ev.accept()
+            return
+        super().wheelEvent(ev)
+
+    def pan(self, dx, dy, dz, relative='global'):
+        if relative == 'view-upright':
+            elev = self.opts.get('elevation', 0)
+            if abs(elev) >= 89.9:
+                relative = 'view'
+        super().pan(dx, dy, dz, relative)
+
     def mouseMoveEvent(self, ev):
         lpos = ev.position() if hasattr(ev, 'position') else ev.localPos()
         if self._last_mouse_pos is None:
@@ -862,3 +983,94 @@ class SlicerCanvas3D(gl.GLViewWidget):
                 self.update()
                 return True
         return super().event(ev)
+
+class ViewCubeWidget(gl.GLViewWidget):
+    def __init__(self, main_viewer, parent=None):
+        super().__init__(parent)
+        self.main_viewer = main_viewer
+        
+        import PyQt6.QtGui as QtGui
+        self.setFixedSize(100, 100)
+        
+        self.opts['distance'] = 40
+        self.opts['fov'] = 30
+        
+        import numpy as np
+        verts = np.array([
+            [1, 1, 1], [-1, 1, 1], [-1, -1, 1], [1, -1, 1],
+            [1, 1, -1], [-1, 1, -1], [-1, -1, -1], [1, -1, -1],
+        ]) * 10
+        
+        faces = np.array([
+            [0, 1, 2], [0, 2, 3], # Top (Z)
+            [4, 7, 6], [4, 6, 5], # Bottom (-Z)
+            [0, 3, 7], [0, 7, 4], # Right (X)
+            [1, 5, 6], [1, 6, 2], # Left (-X)
+            [3, 2, 6], [3, 6, 7], # Front (Y)
+            [0, 4, 5], [0, 5, 1], # Back (-Y)
+        ])
+        
+        colors = np.array([
+            [0.2, 0.5, 0.8, 1], [0.2, 0.5, 0.8, 1], # Top (Blue)
+            [0.1, 0.3, 0.5, 1], [0.1, 0.3, 0.5, 1], # Bottom (Dark Blue)
+            [0.8, 0.3, 0.3, 1], [0.8, 0.3, 0.3, 1], # Right (Red)
+            [0.5, 0.1, 0.1, 1], [0.5, 0.1, 0.1, 1], # Left (Dark Red)
+            [0.4, 0.7, 0.4, 1], [0.4, 0.7, 0.4, 1], # Front (Green)
+            [0.2, 0.4, 0.2, 1], [0.2, 0.4, 0.2, 1], # Back (Dark Green)
+        ])
+        
+        self.mesh = gl.GLMeshItem(vertexes=verts, faces=faces, faceColors=colors, smooth=False, drawEdges=True, edgeColor=(1,1,1,1))
+        self.mesh.setGLOptions('opaque')
+        self.addItem(self.mesh)
+        
+    def paintGL(self, *args, **kwargs):
+        self.opts['elevation'] = self.main_viewer.opts['elevation']
+        self.opts['azimuth'] = self.main_viewer.opts['azimuth']
+        super().paintGL(*args, **kwargs)
+        
+    def project_to_screen(self, pos3d):
+        import PyQt6.QtGui as QtGui
+        import numpy as np
+        pm = self.projectionMatrix()
+        vm = self.viewMatrix()
+        p = QtGui.QVector4D(pos3d[0], pos3d[1], pos3d[2], 1.0)
+        p = pm * vm * p
+        if p.w() == 0: return None
+        p /= p.w()
+        x = (p.x() + 1.0) * 0.5 * self.width()
+        y = (1.0 - p.y()) * 0.5 * self.height()
+        return np.array([x, y])
+
+    def mousePressEvent(self, ev):
+        super().mousePressEvent(ev)
+        import PyQt6.QtCore as QtCore
+        import numpy as np
+        if ev.button() == QtCore.Qt.MouseButton.LeftButton:
+            lpos = ev.position() if hasattr(ev, 'position') else ev.localPos()
+            
+            face_centers = {
+                'Top': np.array([0, 0, 1]),
+                'Bottom': np.array([0, 0, -1]),
+                'Right': np.array([1, 0, 0]),
+                'Left': np.array([-1, 0, 0]),
+                'Front': np.array([0, 1, 0]),
+                'Back': np.array([0, -1, 0]),
+            }
+            best_face = None
+            min_dist = float('inf')
+            
+            cPos = self.cameraPosition()
+            cDir = -cPos.normalized() 
+            
+            for name, center in face_centers.items():
+                dot = np.dot(center, np.array([cDir.x(), cDir.y(), cDir.z()]))
+                if dot < -0.1: 
+                    screen_pos = self.project_to_screen(center * 10)
+                    if screen_pos is not None:
+                        dist = np.linalg.norm(np.array([lpos.x(), lpos.y()]) - screen_pos)
+                        if dist < min_dist:
+                            min_dist = dist
+                            best_face = name
+            
+            if best_face and min_dist < 40:
+                self.main_viewer.snap_camera(best_face)
