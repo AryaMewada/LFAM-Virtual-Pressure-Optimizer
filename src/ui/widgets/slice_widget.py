@@ -367,6 +367,25 @@ class SliceWidget(QWidget):
         wc_layout.addWidget(self.input_wall_count)
         settings_layout.addLayout(wc_layout)
         
+
+        # Nozzle Temp
+        nt_layout = QHBoxLayout()
+        nt_layout.addWidget(QLabel("Nozzle Temp (C):"))
+        self.input_nozzle_temp = QLineEdit("235")
+        self.input_nozzle_temp.setFixedWidth(60)
+        self.input_nozzle_temp.setStyleSheet(f"background-color: {Theme.BG_TERTIARY}; color: {Theme.TEXT_PRIMARY}; border: 1px solid {Theme.BORDER}; padding: 4px;")
+        nt_layout.addWidget(self.input_nozzle_temp)
+        settings_layout.addLayout(nt_layout)
+        
+        # Bed Temp
+        bt_layout = QHBoxLayout()
+        bt_layout.addWidget(QLabel("Bed Temp (C):"))
+        self.input_bed_temp = QLineEdit("110")
+        self.input_bed_temp.setFixedWidth(60)
+        self.input_bed_temp.setStyleSheet(f"background-color: {Theme.BG_TERTIARY}; color: {Theme.TEXT_PRIMARY}; border: 1px solid {Theme.BORDER}; padding: 4px;")
+        bt_layout.addWidget(self.input_bed_temp)
+        settings_layout.addLayout(bt_layout)
+        
         # Infill Density
         id_layout = QHBoxLayout()
         id_layout.addWidget(QLabel("Infill Density (%):"))
@@ -397,17 +416,34 @@ class SliceWidget(QWidget):
             QPushButton {{
                 background-color: {Theme.ACCENT_PRIMARY};
                 color: {Theme.TEXT_PRIMARY};
-                font-weight: bold;
                 font-size: 16px;
+                font-weight: bold;
                 border: none;
                 border-radius: 4px;
             }}
-            QPushButton:hover {{
-                background-color: #2563eb;
-            }}
+            QPushButton:hover {{ background-color: {Theme.ACCENT_SECONDARY}; }}
         """)
         self.btn_slice.clicked.connect(self._on_slice_clicked)
         left_layout.addWidget(self.btn_slice)
+        
+        # Export G-Code Button
+        self.btn_export = QPushButton("Export G-Code")
+        self.btn_export.setFixedHeight(40)
+        self.btn_export.setEnabled(False) # Disabled until sliced
+        self.btn_export.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {Theme.BG_TERTIARY};
+                color: {Theme.TEXT_PRIMARY};
+                font-size: 16px;
+                font-weight: bold;
+                border: 1px solid {Theme.BORDER};
+                border-radius: 4px;
+            }}
+            QPushButton:hover:enabled {{ background-color: {Theme.BG_ELEVATED}; }}
+            QPushButton:disabled {{ color: {Theme.TEXT_SECONDARY}; }}
+        """)
+        self.btn_export.clicked.connect(self._on_export_clicked)
+        left_layout.addWidget(self.btn_export)
         
         # Slicer Status Label
         self.slice_status = QLabel("")
@@ -1036,6 +1072,7 @@ class SliceWidget(QWidget):
             self.layer_slider_container.hide()
         self.anim_overlay.hide()
         self.slice_status.setText("Ready to slice.")
+        self.btn_export.setEnabled(False)
         
         # Restore solid models
         models = getattr(self.gl_viewer, 'active_models', [])
@@ -1086,6 +1123,8 @@ class SliceWidget(QWidget):
             
         self.slice_status.setText("Slicing...")
         self.slice_status.repaint() # Force UI update before blocking thread
+        
+        self._latest_slice_results = []
         
         engine = SlicerEngine(
             layer_height=layer_height, 
@@ -1166,6 +1205,8 @@ class SliceWidget(QWidget):
                     model.rot_matrix,
                     model.scale_vec
                 )
+                
+                self._latest_slice_results.append((island_idx, len(self._latest_slice_results), result))
                 total_layers += len(result.layers)
                 
                 for layer in result.layers:
@@ -1343,6 +1384,8 @@ class SliceWidget(QWidget):
             if hasattr(self, 'layer_slider_container'):
                 self.layer_slider_container.hide()
             self.anim_overlay.hide()
+            
+        self.btn_export.setEnabled(True)
             
         t1 = time.time()
         self.slice_status.setText(f"Successfully sliced {total_layers} layers across {len(models)} models in {t1 - t0:.3f}s.")
@@ -1563,6 +1606,48 @@ class SliceWidget(QWidget):
             self._toggle_animation() # Stop when reached end
         else:
             self.anim_slider.setValue(new_val)
+
+
+    def _on_export_clicked(self):
+        from PyQt6.QtWidgets import QFileDialog, QMessageBox
+        
+        if not hasattr(self, '_latest_slice_results') or not self._latest_slice_results:
+            return
+            
+        filepath, _ = QFileDialog.getSaveFileName(self, "Export G-Code", "", "G-Code Files (*.gcode);;All Files (*)")
+        if not filepath:
+            return
+            
+        try:
+            self.slice_status.setText("Exporting G-Code...")
+            self.slice_status.repaint()
+            
+            from src.slicer.gcode_generator import GCodeGenerator
+            
+            # Read settings
+            layer_height = float(self.input_layer_height.text())
+            extrusion_width = float(self.input_extrusion_width.text())
+            nozzle_temp = int(self.input_nozzle_temp.text())
+            bed_temp = int(self.input_bed_temp.text())
+            
+            generator = GCodeGenerator(
+                layer_height=layer_height,
+                extrusion_width=extrusion_width
+            )
+            
+            generator.begin(bed_temp=bed_temp, nozzle_temp=nozzle_temp)
+            for island_idx, model_idx, result in self._latest_slice_results:
+                generator.add_result(result, island_idx, model_idx)
+            gcode = generator.end()
+            
+            with open(filepath, 'w') as f:
+                f.write(gcode)
+                
+            self.slice_status.setText(f"Exported successfully to {filepath.split('/')[-1]}")
+        except Exception as e:
+            QMessageBox.critical(self, "Export Error", f"Failed to export G-Code:\n{str(e)}")
+            self.slice_status.setText("Export failed.")
+
 
 class SlicerCanvas3D(gl.GLViewWidget):
     """Custom OpenGL Canvas for Slicer with specific gesture overrides and basic transform logic."""
@@ -2251,3 +2336,44 @@ class ViewCubeWidget(gl.GLViewWidget):
             
             if best_face and min_dist < 40:
                 self.main_viewer.snap_camera(best_face)
+
+
+    def _on_export_clicked(self):
+        from PyQt6.QtWidgets import QFileDialog, QMessageBox
+        
+        if not hasattr(self, '_latest_slice_results') or not self._latest_slice_results:
+            return
+            
+        filepath, _ = QFileDialog.getSaveFileName(self, "Export G-Code", "", "G-Code Files (*.gcode);;All Files (*)")
+        if not filepath:
+            return
+            
+        try:
+            self.slice_status.setText("Exporting G-Code...")
+            self.slice_status.repaint()
+            
+            from src.slicer.gcode_generator import GCodeGenerator
+            
+            # Read settings
+            layer_height = float(self.input_layer_height.text())
+            extrusion_width = float(self.input_extrusion_width.text())
+            nozzle_temp = int(self.input_nozzle_temp.text())
+            bed_temp = int(self.input_bed_temp.text())
+            
+            generator = GCodeGenerator(
+                layer_height=layer_height,
+                extrusion_width=extrusion_width
+            )
+            
+            generator.begin(bed_temp=bed_temp, nozzle_temp=nozzle_temp)
+            for island_idx, model_idx, result in self._latest_slice_results:
+                generator.add_result(result, island_idx, model_idx)
+            gcode = generator.end()
+            
+            with open(filepath, 'w') as f:
+                f.write(gcode)
+                
+            self.slice_status.setText(f"Exported successfully to {filepath.split('/')[-1]}")
+        except Exception as e:
+            QMessageBox.critical(self, "Export Error", f"Failed to export G-Code:\\n{str(e)}")
+            self.slice_status.setText("Export failed.")
