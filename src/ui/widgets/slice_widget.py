@@ -1,8 +1,9 @@
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal, QTimer
 
 from PyQt6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QLabel, QFrame, QPushButton, QSpacerItem, 
-    QSizePolicy, QFileDialog, QDialog, QFormLayout, QLineEdit, QDialogButtonBox
+    QSizePolicy, QFileDialog, QDialog, QFormLayout, QLineEdit, QDialogButtonBox,
+    QSlider, QComboBox, QGroupBox, QScrollArea, QGridLayout, QStyleOption, QStyle
 )
 
 from src.ui.theme import Theme
@@ -66,7 +67,7 @@ class SceneGraphItem(QWidget):
         self.name_lbl = QLabel(name)
         self.name_lbl.setStyleSheet(f"color: {Theme.TEXT_PRIMARY};")
         
-        from PyQt6.QtWidgets import QSizePolicy
+        # Left Sidebar (Tools)
         self.name_lbl.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         
         layout.addWidget(self.name_lbl, stretch=1)
@@ -121,7 +122,7 @@ class SceneGraphItem(QWidget):
         self.canvas.update()
 
     def paintEvent(self, pe):
-        from PyQt6.QtWidgets import QStyleOption, QStyle
+        # Left Sidebar (Tools)
         from PyQt6.QtGui import QPainter
         o = QStyleOption()
         o.initFrom(self)
@@ -303,10 +304,8 @@ class SliceWidget(QWidget):
         
         left_layout.addLayout(left_header_layout)
         
-        # Tools Group
-        from PyQt6.QtWidgets import QGroupBox, QScrollArea, QWidget
-        
-        # Object List
+        # Tools        
+        # Left Sidebar (Tools)     # Object List
         self.sg_group = QGroupBox("Objects")
         self.sg_group.setFixedHeight(180)
         sg_group_layout = QVBoxLayout(self.sg_group)
@@ -416,6 +415,36 @@ class SliceWidget(QWidget):
         self.gl_viewer.slice_widget = self
         self.gl_viewer.setBackgroundColor(Theme.BG_PRIMARY)
         center_layout.addWidget(self.gl_viewer, stretch=1)
+        
+        # Layer Range Slider
+        try:
+            from superqt import QRangeSlider
+            import PyQt6.QtCore as QtCore
+            self.layer_slider = QRangeSlider(QtCore.Qt.Orientation.Vertical)
+            self.layer_slider.setMinimumWidth(30)
+            self.layer_slider.hide() # Hidden until sliced
+            self.layer_slider.setStyleSheet(f"""
+                QSlider::groove:vertical {{
+                    background: {Theme.BG_TERTIARY};
+                    width: 6px;
+                    border-radius: 3px;
+                }}
+                QSlider::handle:vertical {{
+                    background: {Theme.ACCENT_PRIMARY};
+                    height: 16px;
+                    margin: 0 -5px;
+                    border-radius: 4px;
+                }}
+                QSlider::sub-page:vertical {{
+                    background: {Theme.ACCENT_PRIMARY};
+                    border-radius: 3px;
+                }}
+            """)
+            self.layer_slider.valueChanged.connect(self._on_layer_slider_changed)
+            center_layout.addWidget(self.layer_slider)
+        except ImportError:
+            print("superqt not installed, layer slider disabled.")
+            self.layer_slider = None
 
         # Perspective Toggle (P)
         self.btn_ortho = QPushButton("P", self.gl_viewer)
@@ -436,7 +465,6 @@ class SliceWidget(QWidget):
             QPushButton { background: #333333; color: white; border: 1px solid #555; font-size: 10px; border-radius: 2px; }
             QPushButton:hover { background: #555555; }
         """)
-        from PyQt6.QtWidgets import QGridLayout
         nav_layout = QGridLayout(self.nav_overlay)
         nav_layout.setContentsMargins(0,0,0,0)
         nav_layout.setSpacing(2)
@@ -462,6 +490,50 @@ class SliceWidget(QWidget):
         btn_back.clicked.connect(lambda: self.gl_viewer.snap_camera('Back'))
         btn_left.clicked.connect(lambda: self.gl_viewer.snap_camera('Left'))
         btn_right.clicked.connect(lambda: self.gl_viewer.snap_camera('Right'))
+        
+        # Toolpath Animation Bar
+        
+        self.anim_overlay = QWidget(self.gl_viewer)
+        self.anim_overlay.setStyleSheet(f"""
+            QWidget {{ background: {Theme.BG_ELEVATED}; border: 1px solid {Theme.BORDER}; border-radius: 8px; }}
+            QPushButton {{ background: {Theme.BG_TERTIARY}; color: white; border: none; font-size: 16px; border-radius: 4px; padding: 5px 15px; font-weight: bold; }}
+            QPushButton:hover {{ background: {Theme.ACCENT_PRIMARY}; }}
+            QComboBox {{ background: {Theme.BG_TERTIARY}; color: white; border: 1px solid {Theme.BORDER}; border-radius: 4px; padding: 2px 10px; }}
+        """)
+        anim_layout = QHBoxLayout(self.anim_overlay)
+        anim_layout.setContentsMargins(10, 5, 10, 5)
+        
+        self.btn_anim_play = QPushButton("▶")
+        self.btn_anim_play.setFixedSize(40, 30)
+        
+        self.anim_slider = QSlider(Qt.Orientation.Horizontal)
+        self.anim_slider.setStyleSheet(f"""
+            QSlider::groove:horizontal {{ background: {Theme.BG_TERTIARY}; height: 6px; border-radius: 3px; }}
+            QSlider::handle:horizontal {{ background: {Theme.ACCENT_PRIMARY}; width: 16px; margin: -5px 0; border-radius: 4px; }}
+            QSlider::sub-page:horizontal {{ background: {Theme.ACCENT_PRIMARY}; border-radius: 3px; }}
+        """)
+        self.anim_slider.setRange(0, 100)
+        self.anim_slider.setEnabled(False)
+        
+        self.anim_speed = QComboBox()
+        self.anim_speed.addItems(["1x", "2x", "5x", "10x", "50x", "100x"])
+        self.anim_speed.setCurrentText("10x")
+        
+        anim_layout.addWidget(self.btn_anim_play)
+        anim_layout.addWidget(self.anim_slider)
+        anim_layout.addWidget(self.anim_speed)
+        
+        self.anim_overlay.hide()
+        
+        self.anim_timer = QTimer(self)
+        self.anim_timer.setInterval(16) # ~60fps
+        
+        self.btn_anim_play.clicked.connect(self._toggle_animation)
+        self.anim_slider.valueChanged.connect(self._on_anim_slider_changed)
+        self.anim_timer.timeout.connect(self._on_anim_tick)
+        
+        self._is_animating = False
+        self._anim_visible_lines = None # np array of all currently visible lines
 
         # Bind resize event to keep overlays in corners
         original_resize = self.gl_viewer.resizeEvent
@@ -470,6 +542,11 @@ class SliceWidget(QWidget):
             w, h = ev.size().width(), ev.size().height()
             self.btn_ortho.move(w - 40, 10)
             self.nav_overlay.move(w - self.nav_overlay.width() - 10, h - self.nav_overlay.height() - 10)
+            
+            # Position animation overlay at bottom left, avoiding nav_overlay on the right
+            self.anim_overlay.resize(w - self.nav_overlay.width() - 40, 50)
+            self.anim_overlay.move(10, h - self.anim_overlay.height() - 10)
+            
         self.gl_viewer.resizeEvent = new_resize
 
         # Vertical Toolbar Overlay Layout
@@ -934,6 +1011,7 @@ class SliceWidget(QWidget):
         t0 = time.time()
         
         all_lines = []
+        self._cached_layer_lines = [] # List of tuples: (z_height, numpy_array_of_pairs)
         
         for model in models:
             # Hide the 3D mesh (model is the GLMeshItem itself)
@@ -952,6 +1030,7 @@ class SliceWidget(QWidget):
             # Extract line segments from the sliced polygons
             for layer in result.layers:
                 z = layer.z_height
+                layer_pairs = []
                 for poly in layer.perimeters:
                     pts = poly.points
                     num_pts = len(pts)
@@ -971,7 +1050,13 @@ class SliceWidget(QWidget):
                     pairs[0::2] = pts_3d[idx0]
                     pairs[1::2] = pts_3d[idx1]
                     
-                    all_lines.append(pairs)
+                    layer_pairs.append(pairs)
+                    
+                if layer_pairs:
+                    self._cached_layer_lines.append((z, np.vstack(layer_pairs)))
+                    
+        # Sort cached lines by Z height just in case (since multiple models might be mixed)
+        self._cached_layer_lines.sort(key=lambda x: x[0])
                     
         # Remove old preview if it exists
         if hasattr(self, 'slice_preview_item') and self.slice_preview_item:
@@ -981,15 +1066,160 @@ class SliceWidget(QWidget):
                 pass # Was already removed
             
         # Add new preview
-        if all_lines:
-            final_lines = np.vstack(all_lines)
+        if self._cached_layer_lines:
+            # Combine all for initial view
+            final_lines = np.vstack([lines for _, lines in self._cached_layer_lines])
             # Use neon green color #10b981
             self.slice_preview_item = gl.GLLinePlotItem(pos=final_lines, color=(0.063, 0.725, 0.506, 1.0), width=1.0, mode='lines', antialias=False)
             self.gl_viewer.addItem(self.slice_preview_item)
             
+            # Populate animation buffer immediately
+            self._anim_visible_lines = final_lines
+            num_segments = len(final_lines) // 2
+            self.anim_slider.setRange(0, num_segments)
+            self.anim_slider.setValue(num_segments)
+            self.anim_slider.setEnabled(True)
+            
+            # Setup Nozzle Cursor
+            if hasattr(self, 'nozzle_cursor') and self.nozzle_cursor:
+                try: self.gl_viewer.removeItem(self.nozzle_cursor)
+                except: pass
+                
+            try:
+                ew = float(self.input_extrusion_width.text())
+            except ValueError:
+                ew = 0.6
+                
+            # Create a small sphere matching the extrusion width to represent the nozzle tip
+            md = gl.MeshData.sphere(rows=10, cols=10, radius=ew/2.0)
+            self.nozzle_cursor = gl.GLMeshItem(meshdata=md, smooth=True, color=(1.0, 0.2, 0.2, 0.8), shader='shaded')
+            self.gl_viewer.addItem(self.nozzle_cursor)
+            
+            # Position it at the end initially
+            if len(final_lines) > 0:
+                end_pos = final_lines[-1]
+                self.nozzle_cursor.translate(end_pos[0], end_pos[1], end_pos[2])
+            
+            # Setup the range slider
+            if self.layer_slider is not None:
+                # Disconnect briefly to avoid firing events while setting up
+                try: self.layer_slider.valueChanged.disconnect(self._on_layer_slider_changed)
+                except: pass
+                
+                max_idx = len(self._cached_layer_lines) - 1
+                self.layer_slider.setRange(0, max_idx)
+                self.layer_slider.setValue((0, max_idx))
+                self.layer_slider.show()
+                
+                # Also show animation overlay
+                self.anim_overlay.show()
+                
+                self.layer_slider.valueChanged.connect(self._on_layer_slider_changed)
+        else:
+            if self.layer_slider is not None:
+                self.layer_slider.hide()
+            self.anim_overlay.hide()
+            
         t1 = time.time()
         
         self.slice_status.setText(f"Successfully sliced {total_layers} layers across {len(models)} models in {t1 - t0:.3f}s.")
+        
+    def _on_layer_slider_changed(self, value):
+        if not hasattr(self, '_cached_layer_lines') or not self._cached_layer_lines:
+            return
+            
+        import numpy as np
+        min_idx, max_idx = value
+        
+        # Guard indices
+        min_idx = max(0, min_idx)
+        max_idx = min(len(self._cached_layer_lines) - 1, max_idx)
+        
+        if min_idx > max_idx:
+            # Hide completely
+            if hasattr(self, 'slice_preview_item') and self.slice_preview_item:
+                self.slice_preview_item.setData(pos=np.empty((0, 3)))
+            return
+            
+        # Combine visible layers
+        visible_lines = [self._cached_layer_lines[i][1] for i in range(min_idx, max_idx + 1)]
+        
+        if hasattr(self, 'slice_preview_item') and self.slice_preview_item:
+            if visible_lines:
+                final_lines = np.vstack(visible_lines)
+                self.slice_preview_item.setData(pos=final_lines)
+                # Update animation buffer
+                self._anim_visible_lines = final_lines
+                self.anim_slider.setRange(0, len(final_lines) // 2)
+                self.anim_slider.setValue(len(final_lines) // 2)
+                if not self.anim_slider.isEnabled():
+                    self.anim_slider.setEnabled(True)
+            else:
+                self.slice_preview_item.setData(pos=np.empty((0, 3)))
+                self._anim_visible_lines = None
+
+    def _toggle_animation(self):
+        if not self._is_animating:
+            self._is_animating = True
+            self.btn_anim_play.setText("⏸")
+            # If at the end, restart
+            if self.anim_slider.value() == self.anim_slider.maximum():
+                self.anim_slider.setValue(0)
+            self.anim_timer.start()
+        else:
+            self._is_animating = False
+            self.btn_anim_play.setText("▶")
+            self.anim_timer.stop()
+            
+    def _on_anim_slider_changed(self, value):
+        if self._anim_visible_lines is None:
+            return
+            
+        import numpy as np
+        # The slider value represents the number of segments to draw
+        # Each segment is 2 points in mode='lines'
+        num_points = value * 2
+        
+        if num_points <= 0:
+            self.slice_preview_item.setData(pos=np.empty((0, 3)))
+            if hasattr(self, 'nozzle_cursor') and self.nozzle_cursor:
+                self.nozzle_cursor.hide()
+        elif num_points >= len(self._anim_visible_lines):
+            self.slice_preview_item.setData(pos=self._anim_visible_lines)
+            if hasattr(self, 'nozzle_cursor') and self.nozzle_cursor:
+                self.nozzle_cursor.show()
+                pos = self._anim_visible_lines[-1]
+                self.nozzle_cursor.resetTransform()
+                self.nozzle_cursor.translate(pos[0], pos[1], pos[2])
+        else:
+            # Efficiently truncate the numpy array to only draw up to the slider's point
+            self.slice_preview_item.setData(pos=self._anim_visible_lines[:num_points])
+            if hasattr(self, 'nozzle_cursor') and self.nozzle_cursor:
+                self.nozzle_cursor.show()
+                pos = self._anim_visible_lines[num_points-1]
+                self.nozzle_cursor.resetTransform()
+                self.nozzle_cursor.translate(pos[0], pos[1], pos[2])
+            
+    def _on_anim_tick(self):
+        if self._anim_visible_lines is None:
+            self._toggle_animation()
+            return
+            
+        speed_str = self.anim_speed.currentText()
+        speed = int(speed_str.replace("x", ""))
+        
+        # Calculate how many segments to advance based on speed
+        # At 1x speed, maybe draw 1 segment per frame? That might be too slow or fast depending on segment size.
+        # But this is a simple proxy.
+        current_val = self.anim_slider.value()
+        new_val = current_val + speed
+        
+        if new_val >= self.anim_slider.maximum():
+            new_val = self.anim_slider.maximum()
+            self.anim_slider.setValue(new_val)
+            self._toggle_animation() # Stop when reached end
+        else:
+            self.anim_slider.setValue(new_val)
 
 class SlicerCanvas3D(gl.GLViewWidget):
     """Custom OpenGL Canvas for Slicer with specific gesture overrides and basic transform logic."""
