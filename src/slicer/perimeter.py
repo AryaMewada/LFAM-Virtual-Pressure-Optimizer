@@ -38,8 +38,8 @@ def generate_perimeters(raw_polygons: List[Polygon], extrusion_width: float, wal
 
     perimeters = []
     
-    # Generate concentric walls
-    for i in range(wall_count):
+    # Generate concentric walls (Inside-Out order)
+    for i in reversed(range(wall_count)):
         # The first wall is inset by half the extrusion width so the bead edge aligns with the model surface.
         # Subsequent walls are inset by the full extrusion width.
         delta = -(extrusion_width / 2.0) - (i * extrusion_width)

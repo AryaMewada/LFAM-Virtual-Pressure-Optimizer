@@ -519,9 +519,17 @@ class SliceWidget(QWidget):
         self.anim_speed.addItems(["1x", "2x", "5x", "10x", "50x", "100x"])
         self.anim_speed.setCurrentText("10x")
         
+        self.btn_3d_bead = QPushButton("3D Bead")
+        self.btn_3d_bead.setCheckable(True)
+        self.btn_3d_bead.setStyleSheet(f"""
+            QPushButton {{ background: {Theme.BG_TERTIARY}; color: white; border: 1px solid {Theme.BORDER}; font-size: 14px; border-radius: 4px; padding: 5px 10px; }}
+            QPushButton:checked {{ background: {Theme.ACCENT_PRIMARY}; }}
+        """)
+        
         anim_layout.addWidget(self.btn_anim_play)
         anim_layout.addWidget(self.anim_slider)
         anim_layout.addWidget(self.anim_speed)
+        anim_layout.addWidget(self.btn_3d_bead)
         
         self.anim_overlay.hide()
         
@@ -531,6 +539,7 @@ class SliceWidget(QWidget):
         self.btn_anim_play.clicked.connect(self._toggle_animation)
         self.anim_slider.valueChanged.connect(self._on_anim_slider_changed)
         self.anim_timer.timeout.connect(self._on_anim_tick)
+        self.btn_3d_bead.toggled.connect(self._on_3d_bead_toggled)
         
         self._is_animating = False
         self._anim_visible_lines = None # np array of all currently visible lines
@@ -1090,6 +1099,12 @@ class SliceWidget(QWidget):
             except ValueError:
                 ew = 0.6
                 
+            self.volumetric_mesh_item = gl.GLMeshItem(meshdata=gl.MeshData(vertexes=np.empty((0,3)), faces=np.empty((0,3), dtype=np.uint32)), smooth=False, shader='shaded')
+            self.volumetric_mesh_item.setVisible(self.btn_3d_bead.isChecked())
+            self.gl_viewer.addItem(self.volumetric_mesh_item)
+            
+            self._update_volumetric_mesh(final_lines)
+            
             # Create a small sphere matching the extrusion width to represent the nozzle tip
             md = gl.MeshData.sphere(rows=10, cols=10, radius=ew/2.0)
             self.nozzle_cursor = gl.GLMeshItem(meshdata=md, smooth=True, color=(1.0, 0.2, 0.2, 0.8), shader='shaded')
@@ -1124,6 +1139,59 @@ class SliceWidget(QWidget):
         
         self.slice_status.setText(f"Successfully sliced {total_layers} layers across {len(models)} models in {t1 - t0:.3f}s.")
         
+    def _update_volumetric_mesh(self, final_lines):
+        if len(final_lines) == 0:
+            md_volumetric = gl.MeshData(vertexes=np.empty((0,3)), faces=np.empty((0,3), dtype=np.uint32))
+            self.volumetric_mesh_item.setMeshData(meshdata=md_volumetric)
+            return
+            
+        import numpy as np
+        num_segments = len(final_lines) // 2
+        try:
+            ew = float(self.input_extrusion_width.text())
+        except ValueError:
+            ew = 0.6
+            
+        p0 = final_lines[0::2]
+        p1 = final_lines[1::2]
+        v = p1 - p0
+        v[:, 2] = 0
+        lengths = np.linalg.norm(v, axis=1, keepdims=True)
+        lengths[lengths == 0] = 1.0
+        v = v / lengths
+        v_perp = np.column_stack([-v[:, 1], v[:, 0], np.zeros(num_segments)])
+        
+        hw = ew / 2.0
+        v0 = p0 + v_perp * hw
+        v1 = p0 - v_perp * hw
+        v2 = p1 - v_perp * hw
+        v3 = p1 + v_perp * hw
+        
+        vertices = np.empty((num_segments * 4, 3))
+        vertices[0::4] = v0
+        vertices[1::4] = v1
+        vertices[2::4] = v2
+        vertices[3::4] = v3
+        
+        faces = np.empty((num_segments * 2, 3), dtype=np.uint32)
+        base = np.arange(num_segments, dtype=np.uint32) * 4
+        faces[0::2, 0] = base + 0
+        faces[0::2, 1] = base + 1
+        faces[0::2, 2] = base + 2
+        faces[1::2, 0] = base + 0
+        faces[1::2, 1] = base + 2
+        faces[1::2, 2] = base + 3
+        
+        # Start fully solid green
+        face_colors = np.ones((num_segments * 2, 4), dtype=np.float32)
+        face_colors[:, :3] = [0.063, 0.725, 0.506]
+        
+        md_volumetric = gl.MeshData(vertexes=vertices, faces=faces, faceColors=face_colors)
+        self.volumetric_mesh_item.setMeshData(meshdata=md_volumetric)
+        self.volumetric_mesh_item.original_vertices = vertices
+        self.volumetric_mesh_item.original_faces = faces
+        self.volumetric_mesh_item.original_colors = face_colors
+
     def _on_layer_slider_changed(self, value):
         if not hasattr(self, '_cached_layer_lines') or not self._cached_layer_lines:
             return
@@ -1154,9 +1222,26 @@ class SliceWidget(QWidget):
                 self.anim_slider.setValue(len(final_lines) // 2)
                 if not self.anim_slider.isEnabled():
                     self.anim_slider.setEnabled(True)
+                    
+                self._update_volumetric_mesh(final_lines)
             else:
                 self.slice_preview_item.setData(pos=np.empty((0, 3)))
                 self._anim_visible_lines = None
+                self._update_volumetric_mesh(np.empty((0, 3)))
+
+    def _on_3d_bead_toggled(self, checked):
+        if hasattr(self, 'slice_preview_item') and self.slice_preview_item:
+            if checked:
+                # Dim the lines to 15% opacity
+                self.slice_preview_item.setData(color=(0.063, 0.725, 0.506, 0.15))
+            else:
+                # Restore full opacity
+                self.slice_preview_item.setData(color=(0.063, 0.725, 0.506, 1.0))
+                
+        if hasattr(self, 'volumetric_mesh_item') and self.volumetric_mesh_item:
+            self.volumetric_mesh_item.setVisible(checked)
+            # Re-trigger animation slider to apply color masks
+            self._on_anim_slider_changed(self.anim_slider.value())
 
     def _toggle_animation(self):
         if not self._is_animating:
@@ -1199,6 +1284,25 @@ class SliceWidget(QWidget):
                 pos = self._anim_visible_lines[num_points-1]
                 self.nozzle_cursor.resetTransform()
                 self.nozzle_cursor.translate(pos[0], pos[1], pos[2])
+                
+        # Update volumetric mesh geometry
+        if hasattr(self, 'volumetric_mesh_item') and self.volumetric_mesh_item and self.btn_3d_bead.isChecked():
+            try:
+                if hasattr(self.volumetric_mesh_item, 'original_faces'):
+                    # To animate, we literally just feed it a truncated list of faces!
+                    # The vertex array stays the same, we just tell OpenGL to draw fewer triangles.
+                    faces_to_draw = self.volumetric_mesh_item.original_faces[:value * 2]
+                    colors_to_draw = self.volumetric_mesh_item.original_colors[:value * 2]
+                    
+                    md = gl.MeshData(
+                        vertexes=self.volumetric_mesh_item.original_vertices, 
+                        faces=faces_to_draw, 
+                        faceColors=colors_to_draw
+                    )
+                    self.volumetric_mesh_item.setMeshData(meshdata=md)
+            except Exception as e:
+                print(f"Error updating volumetric mesh: {e}")
+            
             
     def _on_anim_tick(self):
         if self._anim_visible_lines is None:
