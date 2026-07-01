@@ -2,53 +2,81 @@ import numpy as np
 from typing import List, Tuple
 from .types import Polygon
 
-def optimize_travel(polygons: List[Polygon], start_pos: np.ndarray) -> Tuple[List[Polygon], np.ndarray]:
+def optimize_travel(perimeters: List[Polygon], infill_lines: List[np.ndarray], start_pos: np.ndarray) -> Tuple[List[Polygon], List[np.ndarray], np.ndarray]:
     """
-    Greedy shortest path optimization:
-    1. Finds the nearest polygon to start_pos.
-    2. Rolls its vertices so it starts at the point closest to start_pos.
-    3. Updates start_pos to the end of that polygon.
-    4. Repeats for all polygons.
+    Optimizes travel moves by greedily picking the nearest perimeter or infill line.
+    Rolls perimeters to start at the nearest vertex.
+    Draws infill lines from the nearest end to the farthest end.
     
-    Returns the optimized list of polygons and the final position.
+    Returns:
+        (optimized_perimeters, optimized_infill_lines, end_pos)
     """
-    if not polygons:
-        return [], start_pos
-        
-    unvisited = list(polygons)
-    optimized = []
-    current_pos = start_pos
+    unvisited_perimeters = list(perimeters)
+    unvisited_infill = list(infill_lines)
     
-    while unvisited:
-        best_poly_idx = -1
-        best_shift = 0
-        min_dist = float('inf')
+    optimized_perimeters = []
+    optimized_infill = []
+    
+    current_pos = start_pos.copy()
+    
+    while unvisited_perimeters or unvisited_infill:
+        best_dist = float('inf')
+        best_p_idx = -1
+        best_p_roll = 0
+        best_p_end = None
         
-        for i, poly in enumerate(unvisited):
-            pts = poly.points
-            if len(pts) == 0:
-                continue
-            # Calculate distance from current_pos to all points in this polygon
-            dists = np.linalg.norm(pts - current_pos[:2], axis=1)
-            min_pt_idx = np.argmin(dists)
+        best_i_idx = -1
+        best_i_reverse = False
+        best_i_end = None
+        
+        # Check perimeters
+        for i, p in enumerate(unvisited_perimeters):
+            pts = p.points
+            dists = np.sum((pts - current_pos)**2, axis=1)
+            min_idx = np.argmin(dists)
+            min_d = dists[min_idx]
             
-            if dists[min_pt_idx] < min_dist:
-                min_dist = dists[min_pt_idx]
-                best_poly_idx = i
-                best_shift = min_pt_idx
+            if min_d < best_dist:
+                best_dist = min_d
+                best_p_idx = i
+                best_p_roll = min_idx
+                best_p_end = pts[min_idx] # Closed loop ends where it starts
+                best_i_idx = -1
                 
-        if best_poly_idx == -1:
-            break
+        # Check infill lines
+        for i, line in enumerate(unvisited_infill):
+            d1 = np.sum((line[0] - current_pos)**2)
+            d2 = np.sum((line[-1] - current_pos)**2)
             
-        best_poly = unvisited.pop(best_poly_idx)
-        pts = best_poly.points
-        
-        # Roll the array so the closest point is first
-        if best_shift != 0:
-            pts = np.roll(pts, -best_shift, axis=0)
+            if d1 < best_dist:
+                best_dist = d1
+                best_p_idx = -1
+                best_i_idx = i
+                best_i_reverse = False
+                best_i_end = line[-1]
+            if d2 < best_dist:
+                best_dist = d2
+                best_p_idx = -1
+                best_i_idx = i
+                best_i_reverse = True
+                best_i_end = line[0]
+                
+        if best_p_idx != -1:
+            # Picked a perimeter
+            p = unvisited_perimeters.pop(best_p_idx)
+            rolled_pts = np.roll(p.points, -best_p_roll, axis=0)
+            optimized_perimeters.append(Polygon(points=rolled_pts, is_hole=p.is_hole))
+            current_pos = best_p_end
+            # Pad with None for infill ordering interleaving
+            optimized_infill.append(None)
+        else:
+            # Picked an infill line
+            line = unvisited_infill.pop(best_i_idx)
+            if best_i_reverse:
+                line = line[::-1]
+            optimized_infill.append(line)
+            current_pos = best_i_end
+            # Pad with None for perimeter ordering interleaving
+            optimized_perimeters.append(None)
             
-        optimized.append(Polygon(points=pts))
-        # The end position is the last point in the polygon
-        current_pos = np.array([pts[-1][0], pts[-1][1]])
-        
-    return optimized, current_pos
+    return optimized_perimeters, optimized_infill, current_pos

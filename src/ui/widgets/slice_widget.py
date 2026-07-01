@@ -367,6 +367,25 @@ class SliceWidget(QWidget):
         wc_layout.addWidget(self.input_wall_count)
         settings_layout.addLayout(wc_layout)
         
+        # Infill Density
+        id_layout = QHBoxLayout()
+        id_layout.addWidget(QLabel("Infill Density (%):"))
+        self.input_infill_density = QLineEdit("15")
+        self.input_infill_density.setFixedWidth(60)
+        self.input_infill_density.setStyleSheet(f"background-color: {Theme.BG_TERTIARY}; color: {Theme.TEXT_PRIMARY}; border: 1px solid {Theme.BORDER}; padding: 4px;")
+        id_layout.addWidget(self.input_infill_density)
+        settings_layout.addLayout(id_layout)
+        
+        # Infill Pattern
+        ip_layout = QHBoxLayout()
+        ip_layout.addWidget(QLabel("Infill Pattern:"))
+        self.input_infill_pattern = QComboBox()
+        self.input_infill_pattern.addItems(["grid", "lines"])
+        self.input_infill_pattern.setFixedWidth(80)
+        self.input_infill_pattern.setStyleSheet(f"background-color: {Theme.BG_TERTIARY}; color: {Theme.TEXT_PRIMARY}; border: 1px solid {Theme.BORDER}; padding: 4px;")
+        ip_layout.addWidget(self.input_infill_pattern)
+        settings_layout.addLayout(ip_layout)
+        
         left_layout.addWidget(self.settings_group)
         
         left_layout.addStretch()
@@ -1044,6 +1063,23 @@ class SliceWidget(QWidget):
             initial_height = float(self.input_initial_height.text())
             extrusion_width = float(self.input_extrusion_width.text())
             wall_count = int(self.input_wall_count.text())
+            infill_density = float(self.input_infill_density.text()) / 100.0
+            infill_pattern = self.input_infill_pattern.currentText()
+            
+            # Enforce reasonable LFAM bounds to prevent UI freezes
+            layer_height = max(0.2, layer_height)
+            initial_height = max(0.2, initial_height)
+            extrusion_width = max(0.4, extrusion_width)
+            wall_count = max(0, min(10, wall_count))
+            infill_density = max(0.0, min(0.50, infill_density)) # Max 50% infill for LFAM
+            
+            # Update UI to reflect clamped values
+            self.input_layer_height.setText(str(layer_height))
+            self.input_initial_height.setText(str(initial_height))
+            self.input_extrusion_width.setText(str(extrusion_width))
+            self.input_wall_count.setText(str(wall_count))
+            self.input_infill_density.setText(str(int(infill_density * 100)))
+            
         except ValueError:
             self.slice_status.setText("Invalid slice settings. Must be numbers.")
             return
@@ -1055,7 +1091,9 @@ class SliceWidget(QWidget):
             layer_height=layer_height, 
             initial_layer_height=initial_height,
             extrusion_width=extrusion_width,
-            wall_count=wall_count
+            wall_count=wall_count,
+            infill_density=infill_density,
+            infill_pattern=infill_pattern
         )
         
         total_layers = 0
@@ -1140,23 +1178,41 @@ class SliceWidget(QWidget):
                     if matched_z not in z_groups:
                         z_groups[matched_z] = []
                         
-                    for poly in layer.perimeters:
-                        pts = poly.points
-                        num_pts = len(pts)
-                        if num_pts < 2: continue
-                        
-                        pts_3d = np.zeros((num_pts, 3))
-                        pts_3d[:, :2] = pts
-                        pts_3d[:, 2] = z
-                        
-                        idx0 = np.arange(num_pts)
-                        idx1 = np.roll(idx0, -1)
-                        pairs = np.empty((num_pts * 2, 3))
-                        pairs[0::2] = pts_3d[idx0]
-                        pairs[1::2] = pts_3d[idx1]
-                        
-                        z_groups[matched_z].append(pairs)
-                        
+                    # Zip padded perimeters and infill lines
+                    orange_color = (1.0, 0.5, 0.0, 1.0)
+                    for poly, infill in zip(layer.perimeters, getattr(layer, 'infill_lines', [])):
+                        if poly is not None:
+                            pts = poly.points
+                            num_pts = len(pts)
+                            if num_pts < 2: continue
+                            
+                            pts_3d = np.zeros((num_pts, 3))
+                            pts_3d[:, :2] = pts
+                            pts_3d[:, 2] = z
+                            
+                            idx0 = np.arange(num_pts)
+                            idx1 = np.roll(idx0, -1)
+                            pairs = np.empty((num_pts * 2, 3))
+                            pairs[0::2] = pts_3d[idx0]
+                            pairs[1::2] = pts_3d[idx1]
+                            
+                            z_groups[matched_z].append((pairs, green_color))
+                        elif infill is not None:
+                            num_pts = len(infill)
+                            if num_pts < 2: continue
+                            
+                            pts_3d = np.zeros((num_pts, 3))
+                            pts_3d[:, :2] = infill
+                            pts_3d[:, 2] = z
+                            
+                            idx0 = np.arange(num_pts - 1)
+                            idx1 = idx0 + 1
+                            pairs = np.empty(((num_pts - 1) * 2, 3))
+                            pairs[0::2] = pts_3d[idx0]
+                            pairs[1::2] = pts_3d[idx1]
+                            
+                            z_groups[matched_z].append((pairs, orange_color))
+                            
             # Output Island Layers sequentially
             for z in sorted(z_groups.keys()):
                 layer_pairs = []
@@ -1164,13 +1220,13 @@ class SliceWidget(QWidget):
                 group_polys = z_groups[z]
                 
                 for i in range(len(group_polys)):
-                    pairs = group_polys[i]
+                    pairs, color = group_polys[i]
                     layer_pairs.append(pairs)
-                    layer_colors.append(np.tile(green_color, (len(pairs), 1)))
+                    layer_colors.append(np.tile(color, (len(pairs), 1)))
                     
                     if i < len(group_polys) - 1:
                         last_pt = pairs[-1]
-                        next_pt = group_polys[i+1][0]
+                        next_pt = group_polys[i+1][0][0]
                         layer_pairs.append(np.array([last_pt, next_pt]))
                         layer_colors.append(np.tile(blue_color, (2, 1)))
                         
@@ -1292,24 +1348,39 @@ class SliceWidget(QWidget):
         self.slice_status.setText(f"Successfully sliced {total_layers} layers across {len(models)} models in {t1 - t0:.3f}s.")
 
     def _update_volumetric_mesh(self):
-        # We no longer regenerate the mesh data here, we just slice the pre-calculated one!
+        import numpy as np
+        import pyqtgraph.opengl as gl
         if not hasattr(self, '_anim_visible_lines') or self._anim_visible_lines is None:
-            if hasattr(self, 'volumetric_mesh_item'):
+            if hasattr(self, 'volumetric_mesh_item') and self.volumetric_mesh_item:
                 md_volumetric = gl.MeshData(vertexes=np.empty((0,3)), faces=np.empty((0,3), dtype=np.uint32))
                 self.volumetric_mesh_item.setMeshData(meshdata=md_volumetric)
             return
             
-        if not hasattr(self, '_full_volumetric_faces'):
+        if not hasattr(self, '_full_volumetric_faces') or not self.btn_3d_bead.isChecked():
             return
             
-        # The number of segments is the number of extrusion pairs we've drawn
+        value = self.anim_slider.value()
         final_lines = self._anim_visible_lines
         final_colors = self._anim_visible_colors
         
-        is_extrusion = (final_colors[0::2, 3] > 0.5)
+        # Calculate skipped extrusions from min_layer_slider
+        min_idx = self.min_layer_slider.value() if hasattr(self, 'min_layer_slider') else 0
+        skipped_colors = []
+        for i in range(min_idx):
+            skipped_colors.append(self._cached_layer_lines[i][2])
+            
+        skipped_extrusions = 0
+        if skipped_colors:
+            all_skipped_colors = np.vstack(skipped_colors)
+            skipped_extrusions = np.count_nonzero(all_skipped_colors[0::2, 3] > 0.5)
+            
+        start_face = skipped_extrusions * 8
+        
+        # We need to know exactly how many extrusions we've drawn up to `value`
+        drawn_colors = final_colors[:value*2]
+        is_extrusion = (drawn_colors[0::2, 3] > 0.5)
         num_visible_extrusions = np.count_nonzero(is_extrusion)
         
-        # Each segment generated exactly 8 faces (triangles)
         num_faces = num_visible_extrusions * 8
         
         if num_faces <= 0:
@@ -1317,13 +1388,29 @@ class SliceWidget(QWidget):
             self.volumetric_mesh_item.setMeshData(meshdata=md_volumetric)
             return
             
-        if num_faces > len(self._full_volumetric_faces):
-            num_faces = len(self._full_volumetric_faces)
+        end_face = start_face + num_faces
+        if end_face > len(self._full_volumetric_faces):
+            end_face = len(self._full_volumetric_faces)
             
-        visible_faces = self._full_volumetric_faces[:num_faces]
-        visible_colors = self._full_volumetric_colors[:num_faces]
+        visible_faces = self._full_volumetric_faces[start_face:end_face]
+        visible_colors = self._full_volumetric_colors[start_face:end_face].copy()
         
-        # We can pass the FULL vertices array, as long as faces only references valid vertices
+        # Re-apply fading (ambient occlusion based on distance to nozzle Z)
+        if value > 0 and len(final_lines) > 0:
+            num_points = min(value*2, len(final_lines))
+            current_z = final_lines[num_points - 1, 2]
+            
+            # Since visible_faces corresponds to self._full_volumetric_verts, 
+            # we check the Z height of the first vertex of each face
+            vertex_indices = visible_faces[:, 0]
+            face_z = self._full_volumetric_verts[vertex_indices, 2]
+            dz = current_z - face_z
+            
+            fade_dist = 150.0
+            fade_factor = np.clip(1.0 - (dz / fade_dist) * 0.85, 0.15, 1.0)
+            
+            visible_colors[:, :3] *= fade_factor[:, None]
+            
         md_volumetric = gl.MeshData(
             vertexes=self._full_volumetric_verts, 
             faces=visible_faces, 
@@ -1371,51 +1458,31 @@ class SliceWidget(QWidget):
             self._anim_visible_lines = None
             self._anim_visible_colors = None
             
-        self._update_volumetric_mesh()
-        
-        # Trigger an update of the geometry according to anim slider
-        self._on_anim_slider_changed(self.anim_slider.value())
-        
         if min_idx > max_idx:
             # Hide completely
             if hasattr(self, 'slice_preview_item') and self.slice_preview_item:
-                self.slice_preview_item.setData(pos=np.empty((0, 3)))
+                self.slice_preview_item.setData(pos=np.empty((0, 3)), color=np.empty((0, 4)))
             return
             
-        # Combine visible layers
-        visible_lines = [self._cached_layer_lines[i][1] for i in range(min_idx, max_idx + 1)]
-        
         if hasattr(self, 'slice_preview_item') and self.slice_preview_item:
             if visible_lines:
                 final_lines = np.vstack(visible_lines)
-                self.slice_preview_item.setData(pos=final_lines)
-                # Update animation buffer
-                self._anim_visible_lines = final_lines
                 self.anim_slider.setRange(0, len(final_lines) // 2)
                 self.anim_slider.setValue(len(final_lines) // 2)
                 if not self.anim_slider.isEnabled():
                     self.anim_slider.setEnabled(True)
                     
-                self._update_volumetric_mesh()
-            else:
-                self.slice_preview_item.setData(pos=np.empty((0, 3)), color=np.empty((0, 4)))
-                self._anim_visible_lines = None
-                self._anim_visible_colors = None
-                self._update_volumetric_mesh()
+        # Update everything based on the anim slider
+        self._on_anim_slider_changed(self.anim_slider.value())
 
     def _on_3d_bead_toggled(self, checked):
         if hasattr(self, 'slice_preview_item') and self.slice_preview_item:
-            if checked:
-                # Dim the lines to 15% opacity
-                self.slice_preview_item.setData(color=(0.063, 0.725, 0.506, 0.15))
-            else:
-                # Restore full opacity
-                self.slice_preview_item.setData(color=(0.063, 0.725, 0.506, 1.0))
-                
-        if hasattr(self, 'volumetric_mesh_item') and self.volumetric_mesh_item:
-            self.volumetric_mesh_item.setVisible(checked)
             # Re-trigger animation slider to apply color masks
             self._on_anim_slider_changed(self.anim_slider.value())
+            
+        if hasattr(self, 'volumetric_mesh_item') and self.volumetric_mesh_item:
+            self.volumetric_mesh_item.setVisible(checked)
+            self._update_volumetric_mesh()
 
     def _toggle_animation(self):
         if not self._is_animating:
@@ -1429,9 +1496,9 @@ class SliceWidget(QWidget):
             self._is_animating = False
             self.btn_anim_play.setText("▶")
             self.anim_timer.stop()
-            
+
     def _on_anim_slider_changed(self, value):
-        if self._anim_visible_lines is None:
+        if getattr(self, '_anim_visible_lines', None) is None:
             return
             
         import numpy as np
@@ -1474,65 +1541,9 @@ class SliceWidget(QWidget):
                     model.setColor((0.3, 0.3, 0.3, 0.15))
                     
         self._update_volumetric_mesh()
-        
-    def _update_volumetric_mesh(self):
-        import numpy as np
-        import pyqtgraph.opengl as gl
-        if not hasattr(self, '_anim_visible_lines') or self._anim_visible_lines is None:
-            if hasattr(self, 'volumetric_mesh_item') and self.volumetric_mesh_item:
-                md_volumetric = gl.MeshData(vertexes=np.empty((0,3)), faces=np.empty((0,3), dtype=np.uint32))
-                self.volumetric_mesh_item.setMeshData(meshdata=md_volumetric)
-            return
-            
-        if not hasattr(self, '_full_volumetric_faces') or not self.btn_3d_bead.isChecked():
-            return
-            
-        value = self.anim_slider.value()
-        final_lines = self._anim_visible_lines
-        final_colors = self._anim_visible_colors
-        
-        # We need to know exactly how many extrusions we've drawn up to `value`
-        drawn_colors = final_colors[:value*2]
-        is_extrusion = (drawn_colors[0::2, 3] > 0.5)
-        num_visible_extrusions = np.count_nonzero(is_extrusion)
-        
-        num_faces = num_visible_extrusions * 8
-        
-        if num_faces <= 0:
-            md_volumetric = gl.MeshData(vertexes=np.empty((0,3)), faces=np.empty((0,3), dtype=np.uint32))
-            self.volumetric_mesh_item.setMeshData(meshdata=md_volumetric)
-            return
-            
-        if num_faces > len(self._full_volumetric_faces):
-            num_faces = len(self._full_volumetric_faces)
-            
-        visible_faces = self._full_volumetric_faces[:num_faces]
-        visible_colors = self._full_volumetric_colors[:num_faces].copy()
-        
-        # Re-apply fading (ambient occlusion based on distance to nozzle Z)
-        if value > 0 and len(final_lines) > 0:
-            num_points = min(value*2, len(final_lines))
-            current_z = final_lines[num_points - 1, 2]
-            
-            # Since visible_faces corresponds to self._full_volumetric_verts, 
-            # we check the Z height of the first vertex of each face
-            vertex_indices = visible_faces[:, 0]
-            face_z = self._full_volumetric_verts[vertex_indices, 2]
-            dz = current_z - face_z
-            
-            fade_dist = 150.0
-            fade_factor = np.clip(1.0 - (dz / fade_dist) * 0.85, 0.15, 1.0)
-            
-            visible_colors[:, :3] *= fade_factor[:, None]
-            
-        md_volumetric = gl.MeshData(
-            vertexes=self._full_volumetric_verts, 
-            faces=visible_faces, 
-            faceColors=visible_colors
-        )
-        self.volumetric_mesh_item.setMeshData(meshdata=md_volumetric)
 
     def _on_anim_tick(self):
+
         if self._anim_visible_lines is None:
             self._toggle_animation()
             return

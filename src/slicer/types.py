@@ -14,6 +14,7 @@ class SliceLayer:
     z_height: float
     polygons: List[Polygon] = field(default_factory=list)
     perimeters: List[Polygon] = field(default_factory=list)
+    infill_lines: List[np.ndarray] = field(default_factory=list)
 
 @dataclass
 class SliceResult:
