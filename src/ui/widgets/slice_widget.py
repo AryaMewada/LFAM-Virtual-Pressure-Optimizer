@@ -412,39 +412,46 @@ class SliceWidget(QWidget):
         
         # Main Viewer Area (Custom OpenGL Canvas)
         self.gl_viewer = SlicerCanvas3D()
+        self.gl_viewer.parent_slice_widget = self
         self.gl_viewer.slice_widget = self
         self.gl_viewer.setBackgroundColor(Theme.BG_PRIMARY)
         center_layout.addWidget(self.gl_viewer, stretch=1)
         
         # Layer Range Slider
-        try:
-            from superqt import QRangeSlider
-            import PyQt6.QtCore as QtCore
-            self.layer_slider = QRangeSlider(QtCore.Qt.Orientation.Vertical)
-            self.layer_slider.setMinimumWidth(30)
-            self.layer_slider.hide() # Hidden until sliced
-            self.layer_slider.setStyleSheet(f"""
-                QSlider::groove:vertical {{
-                    background: {Theme.BG_TERTIARY};
-                    width: 6px;
-                    border-radius: 3px;
-                }}
-                QSlider::handle:vertical {{
-                    background: {Theme.ACCENT_PRIMARY};
-                    height: 16px;
-                    margin: 0 -5px;
-                    border-radius: 4px;
-                }}
-                QSlider::sub-page:vertical {{
-                    background: {Theme.ACCENT_PRIMARY};
-                    border-radius: 3px;
-                }}
-            """)
-            self.layer_slider.valueChanged.connect(self._on_layer_slider_changed)
-            center_layout.addWidget(self.layer_slider)
-        except ImportError:
-            print("superqt not installed, layer slider disabled.")
-            self.layer_slider = None
+        # Layer Range Sliders (Min and Max)
+        self.layer_slider_container = QWidget()
+        ls_layout = QHBoxLayout(self.layer_slider_container)
+        ls_layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.min_layer_slider = QSlider(Qt.Orientation.Vertical)
+        self.min_layer_slider.setToolTip("Minimum Layer")
+        self.max_layer_slider = QSlider(Qt.Orientation.Vertical)
+        self.max_layer_slider.setToolTip("Maximum Layer")
+        
+        slider_style = f"""
+            QSlider::groove:vertical {{
+                background: {Theme.BG_TERTIARY};
+                width: 6px;
+                border-radius: 3px;
+            }}
+            QSlider::handle:vertical {{
+                background: {Theme.ACCENT_PRIMARY};
+                height: 16px;
+                margin: 0 -5px;
+                border-radius: 4px;
+            }}
+        """
+        self.min_layer_slider.setStyleSheet(slider_style)
+        self.max_layer_slider.setStyleSheet(slider_style)
+        
+        ls_layout.addWidget(self.min_layer_slider)
+        ls_layout.addWidget(self.max_layer_slider)
+        
+        self.layer_slider_container.hide() # Hidden until sliced
+        
+        self.min_layer_slider.valueChanged.connect(self._on_layer_slider_changed)
+        self.max_layer_slider.valueChanged.connect(self._on_layer_slider_changed)
+        center_layout.addWidget(self.layer_slider_container)
 
         # Perspective Toggle (P)
         self.btn_ortho = QPushButton("P", self.gl_viewer)
@@ -985,11 +992,47 @@ class SliceWidget(QWidget):
             self.scene_graph_area.update()
 
         
+    def clear_slice(self):
+        # Called when models are manipulated, invalidating the current slice
+        if hasattr(self, 'slice_preview_item') and self.slice_preview_item:
+            try: self.gl_viewer.removeItem(self.slice_preview_item)
+            except ValueError: pass
+            self.slice_preview_item = None
+            
+        if hasattr(self, 'volumetric_mesh_item') and self.volumetric_mesh_item:
+            try: self.gl_viewer.removeItem(self.volumetric_mesh_item)
+            except ValueError: pass
+            self.volumetric_mesh_item = None
+            
+        if hasattr(self, 'nozzle_cursor') and self.nozzle_cursor:
+            try: self.gl_viewer.removeItem(self.nozzle_cursor)
+            except ValueError: pass
+            self.nozzle_cursor = None
+            
+        self._cached_layer_lines = []
+        self._anim_visible_lines = None
+        self._anim_visible_colors = None
+        
+        if hasattr(self, 'layer_slider_container'):
+            self.layer_slider_container.hide()
+        self.anim_overlay.hide()
+        self.slice_status.setText("Ready to slice.")
+        
+        # Restore solid models
+        models = getattr(self.gl_viewer, 'active_models', [])
+        for model in models:
+            model._is_sliced = False
+            model.setGLOptions('opaque')
+            if hasattr(model, '_original_color'):
+                model.setColor(model._original_color)
+                
     def _on_slice_clicked(self):
         import time
         import numpy as np
         import pyqtgraph.opengl as gl
         from src.slicer.engine import SlicerEngine
+        from src.slicer.mesh_generator import generate_volumetric_mesh
+        from src.slicer.mesh_prep import prepare_mesh_for_slicing
         
         models = getattr(self.gl_viewer, 'active_models', [])
         if not models:
@@ -1008,7 +1051,6 @@ class SliceWidget(QWidget):
         self.slice_status.setText("Slicing...")
         self.slice_status.repaint() # Force UI update before blocking thread
         
-        # In a real app we'd use a QThread. For now, block and slice.
         engine = SlicerEngine(
             layer_height=layer_height, 
             initial_layer_height=initial_height,
@@ -1019,189 +1061,320 @@ class SliceWidget(QWidget):
         total_layers = 0
         t0 = time.time()
         
+        self._cached_layer_lines = [] 
         all_lines = []
-        self._cached_layer_lines = [] # List of tuples: (z_height, numpy_array_of_pairs)
+        all_colors = []
         
+        green_color = np.array([0.063, 0.725, 0.506, 1.0], dtype=np.float32)
+        blue_color = np.array([0.2, 0.5, 1.0, 0.2], dtype=np.float32) # Faint travel line
+        
+        models_info = []
         for model in models:
-            # Hide the 3D mesh (model is the GLMeshItem itself)
-            if hasattr(model, 'setVisible'):
-                model.setVisible(False)
+            verts = prepare_mesh_for_slicing(model.raw_vertices, model.pos, model.rot_matrix, model.scale_vec)
+            pts = verts.reshape(-1, 3)
+            if len(pts) > 0:
+                models_info.append({
+                    'model': model,
+                    'min_x': pts[:, 0].min(), 'max_x': pts[:, 0].max(),
+                    'min_y': pts[:, 1].min(), 'max_y': pts[:, 1].max()
+                })
                 
-            # Call slice_model on the engine
-            result = engine.slice_model(
-                model.raw_vertices,
-                model.pos,
-                model.rot_matrix,
-                model.scale_vec
-            )
-            total_layers += len(result.layers)
-            
-            # Extract line segments from the sliced polygons
-            for layer in result.layers:
-                z = layer.z_height
-                layer_pairs = []
-                for poly in layer.perimeters:
-                    pts = poly.points
-                    num_pts = len(pts)
-                    if num_pts < 2:
-                        continue
+        # Island Clustering
+        CLEARANCE = 50.0
+        islands = [[info] for info in models_info]
+        merged = True
+        while merged:
+            merged = False
+            for i in range(len(islands)):
+                for j in range(i+1, len(islands)):
+                    overlaps = False
+                    for m1 in islands[i]:
+                        for m2 in islands[j]:
+                            if not (m1['max_x'] + CLEARANCE < m2['min_x'] or 
+                                    m1['min_x'] - CLEARANCE > m2['max_x'] or 
+                                    m1['max_y'] + CLEARANCE < m2['min_y'] or 
+                                    m1['min_y'] - CLEARANCE > m2['max_y']):
+                                overlaps = True
+                                break
+                        if overlaps: break
+                    if overlaps:
+                        islands[i].extend(islands[j])
+                        islands.pop(j)
+                        merged = True
+                        break
+                if merged: break
+                
+        for island_idx, island_models in enumerate(islands):
+            z_groups = {}
+            for info in island_models:
+                model = info['model']
+                
+                # Turn model into wireframe
+                if hasattr(model, 'setGLOptions'):
+                    model.setGLOptions('translucent')
+                    if not hasattr(model, '_original_color'):
+                        model._original_color = model.opts.get('color', (1,1,1,1))
+                    model.setColor((0.3, 0.3, 0.3, 0.2)) # Faint wireframe
+                    
+                # Setup dirty flag callback if not exists
+                if not getattr(model, '_slice_transform_connected', False):
+                    model._slice_transform_connected = True
+                    # A hack: GLMeshItem has a transform() that gets updated, but doesn't emit signals easily.
+                    # We will handle clearing the slice inside LayerViewerWidget.apply_transform instead.
+                    
+                result = engine.slice_model(
+                    model.raw_vertices,
+                    model.pos,
+                    model.rot_matrix,
+                    model.scale_vec
+                )
+                total_layers += len(result.layers)
+                
+                for layer in result.layers:
+                    z = layer.z_height
+                    matched_z = z
+                    for existing_z in z_groups.keys():
+                        if abs(existing_z - z) < 1e-4:
+                            matched_z = existing_z
+                            break
+                    if matched_z not in z_groups:
+                        z_groups[matched_z] = []
                         
-                    # Create 3D points
-                    pts_3d = np.zeros((num_pts, 3))
-                    pts_3d[:, :2] = pts
-                    pts_3d[:, 2] = z
-                    
-                    # Create pairs for mode='lines': [p0, p1, p1, p2, p2, p3, ..., pN, p0]
-                    idx0 = np.arange(num_pts)
-                    idx1 = np.roll(idx0, -1)
-                    
-                    pairs = np.empty((num_pts * 2, 3))
-                    pairs[0::2] = pts_3d[idx0]
-                    pairs[1::2] = pts_3d[idx1]
-                    
+                    for poly in layer.perimeters:
+                        pts = poly.points
+                        num_pts = len(pts)
+                        if num_pts < 2: continue
+                        
+                        pts_3d = np.zeros((num_pts, 3))
+                        pts_3d[:, :2] = pts
+                        pts_3d[:, 2] = z
+                        
+                        idx0 = np.arange(num_pts)
+                        idx1 = np.roll(idx0, -1)
+                        pairs = np.empty((num_pts * 2, 3))
+                        pairs[0::2] = pts_3d[idx0]
+                        pairs[1::2] = pts_3d[idx1]
+                        
+                        z_groups[matched_z].append(pairs)
+                        
+            # Output Island Layers sequentially
+            for z in sorted(z_groups.keys()):
+                layer_pairs = []
+                layer_colors = []
+                group_polys = z_groups[z]
+                
+                for i in range(len(group_polys)):
+                    pairs = group_polys[i]
                     layer_pairs.append(pairs)
+                    layer_colors.append(np.tile(green_color, (len(pairs), 1)))
                     
+                    if i < len(group_polys) - 1:
+                        last_pt = pairs[-1]
+                        next_pt = group_polys[i+1][0]
+                        layer_pairs.append(np.array([last_pt, next_pt]))
+                        layer_colors.append(np.tile(blue_color, (2, 1)))
+                        
                 if layer_pairs:
-                    self._cached_layer_lines.append((z, np.vstack(layer_pairs)))
+                    z_lines = np.vstack(layer_pairs)
+                    z_colors = np.vstack(layer_colors)
+                    self._cached_layer_lines.append((z, z_lines, z_colors))
+                    all_lines.append(z_lines)
+                    all_colors.append(z_colors)
                     
-        # Sort cached lines by Z height just in case (since multiple models might be mixed)
-        self._cached_layer_lines.sort(key=lambda x: x[0])
+            # Inter-Island Travel
+            if island_idx < len(islands) - 1 and len(all_lines) > 0:
+                last_lines = all_lines[-1]
+                if len(last_lines) > 0:
+                    last_pt = last_lines[-1]
+                    # Get start point of next island (approx)
+                    next_model = islands[island_idx+1][0]['model']
+                    # Just draw a travel move to the center of the next model's XY bounding box, at a safe Z
+                    next_info = islands[island_idx+1][0]
+                    cx = (next_info['min_x'] + next_info['max_x']) / 2.0
+                    cy = (next_info['min_y'] + next_info['max_y']) / 2.0
+                    next_pt = np.array([cx, cy, last_pt[2] + 20.0]) # Safe Z hop
                     
+                    island_travel = np.array([last_pt, next_pt])
+                    self._cached_layer_lines.append((last_pt[2] + 20.0, island_travel, np.tile(blue_color, (2, 1))))
+                    all_lines.append(island_travel)
+                    all_colors.append(np.tile(blue_color, (2, 1)))
+
         # Remove old preview if it exists
         if hasattr(self, 'slice_preview_item') and self.slice_preview_item:
-            try:
-                self.gl_viewer.removeItem(self.slice_preview_item)
-            except ValueError:
-                pass # Was already removed
+            try: self.gl_viewer.removeItem(self.slice_preview_item)
+            except ValueError: pass
             
-        # Add new preview
         if self._cached_layer_lines:
-            # Combine all for initial view
-            final_lines = np.vstack([lines for _, lines in self._cached_layer_lines])
-            # Use neon green color #10b981
-            self.slice_preview_item = gl.GLLinePlotItem(pos=final_lines, color=(0.063, 0.725, 0.506, 1.0), width=1.0, mode='lines', antialias=False)
+            final_lines = np.vstack(all_lines)
+            final_colors = np.vstack(all_colors)
+            self.slice_preview_item = gl.GLLinePlotItem(pos=final_lines, color=final_colors, width=1.0, mode='lines', antialias=False)
             self.gl_viewer.addItem(self.slice_preview_item)
             
-            # Populate animation buffer immediately
             self._anim_visible_lines = final_lines
+            self._anim_visible_colors = final_colors
             num_segments = len(final_lines) // 2
-            self.anim_slider.setRange(0, num_segments)
-            self.anim_slider.setValue(num_segments)
-            self.anim_slider.setEnabled(True)
             
-            # Setup Nozzle Cursor
+            if hasattr(self, 'anim_slider'):
+                self.anim_slider.setRange(0, num_segments)
+                self.anim_slider.setValue(num_segments)
+                self.anim_slider.setEnabled(True)
+                
             if hasattr(self, 'nozzle_cursor') and self.nozzle_cursor:
                 try: self.gl_viewer.removeItem(self.nozzle_cursor)
                 except: pass
                 
-            try:
-                ew = float(self.input_extrusion_width.text())
-            except ValueError:
-                ew = 0.6
-                
-            self.volumetric_mesh_item = gl.GLMeshItem(meshdata=gl.MeshData(vertexes=np.empty((0,3)), faces=np.empty((0,3), dtype=np.uint32)), smooth=False, shader='shaded')
-            self.volumetric_mesh_item.setVisible(self.btn_3d_bead.isChecked())
-            self.gl_viewer.addItem(self.volumetric_mesh_item)
-            
-            self._update_volumetric_mesh(final_lines)
-            
-            # Create a small sphere matching the extrusion width to represent the nozzle tip
-            md = gl.MeshData.sphere(rows=10, cols=10, radius=ew/2.0)
+            md = gl.MeshData.sphere(rows=10, cols=10, radius=extrusion_width/2.0)
             self.nozzle_cursor = gl.GLMeshItem(meshdata=md, smooth=True, color=(1.0, 0.2, 0.2, 0.8), shader='shaded')
             self.gl_viewer.addItem(self.nozzle_cursor)
             
-            # Position it at the end initially
             if len(final_lines) > 0:
                 end_pos = final_lines[-1]
                 self.nozzle_cursor.translate(end_pos[0], end_pos[1], end_pos[2])
-            
-            # Setup the range slider
-            if self.layer_slider is not None:
-                # Disconnect briefly to avoid firing events while setting up
-                try: self.layer_slider.valueChanged.disconnect(self._on_layer_slider_changed)
+                
+            # Pre-calculate volumetric mesh
+            try:
+                z_vals = final_lines[0::2, 2]
+                z_min, z_max = z_vals.min(), z_vals.max()
+                
+                # Only pass extrusion lines (alpha == 1.0)
+                is_extrusion = final_colors[0::2, 3] > 0.5
+                p0 = final_lines[0::2][is_extrusion]
+                p1 = final_lines[1::2][is_extrusion]
+                
+                self._full_volumetric_verts, self._full_volumetric_faces, self._full_volumetric_colors = generate_volumetric_mesh(
+                    p0, p1, extrusion_width, layer_height, z_min, z_max
+                )
+                
+                # Create the volumetric mesh item here ONCE
+                md_volumetric = gl.MeshData(
+                    vertexes=self._full_volumetric_verts, 
+                    faces=self._full_volumetric_faces, 
+                    faceColors=self._full_volumetric_colors
+                )
+                if not hasattr(self, 'volumetric_mesh_item'):
+                    self.volumetric_mesh_item = gl.GLMeshItem(meshdata=md_volumetric, smooth=False, shader=None)
+                else:
+                    self.volumetric_mesh_item.setMeshData(meshdata=md_volumetric)
+                    
+                self.volumetric_mesh_item.setVisible(self.btn_3d_bead.isChecked())
+                if self.volumetric_mesh_item not in self.gl_viewer.items:
+                    self.gl_viewer.addItem(self.volumetric_mesh_item)
+            except Exception as e:
+                print(f"Failed to generate volumetric mesh: {e}")
+                self._full_volumetric_verts = np.empty((0, 3))
+                self._full_volumetric_faces = np.empty((0, 3), dtype=np.uint32)
+                self._full_volumetric_colors = np.empty((0, 4))
+                
+            # Sliders setup
+            if hasattr(self, 'min_layer_slider') and hasattr(self, 'max_layer_slider'):
+                try: 
+                    self.min_layer_slider.valueChanged.disconnect(self._on_layer_slider_changed)
+                    self.max_layer_slider.valueChanged.disconnect(self._on_layer_slider_changed)
                 except: pass
                 
                 max_idx = len(self._cached_layer_lines) - 1
-                self.layer_slider.setRange(0, max_idx)
-                self.layer_slider.setValue((0, max_idx))
-                self.layer_slider.show()
+                self.min_layer_slider.setRange(0, max_idx)
+                self.min_layer_slider.setValue(0)
+                self.max_layer_slider.setRange(0, max_idx)
+                self.max_layer_slider.setValue(max_idx)
                 
-                # Also show animation overlay
+                self.layer_slider_container.show()
                 self.anim_overlay.show()
                 
-                self.layer_slider.valueChanged.connect(self._on_layer_slider_changed)
+                self.min_layer_slider.valueChanged.connect(self._on_layer_slider_changed)
+                self.max_layer_slider.valueChanged.connect(self._on_layer_slider_changed)
         else:
-            if self.layer_slider is not None:
-                self.layer_slider.hide()
+            if hasattr(self, 'layer_slider_container'):
+                self.layer_slider_container.hide()
             self.anim_overlay.hide()
             
         t1 = time.time()
-        
         self.slice_status.setText(f"Successfully sliced {total_layers} layers across {len(models)} models in {t1 - t0:.3f}s.")
+
+    def _update_volumetric_mesh(self):
+        # We no longer regenerate the mesh data here, we just slice the pre-calculated one!
+        if not hasattr(self, '_anim_visible_lines') or self._anim_visible_lines is None:
+            if hasattr(self, 'volumetric_mesh_item'):
+                md_volumetric = gl.MeshData(vertexes=np.empty((0,3)), faces=np.empty((0,3), dtype=np.uint32))
+                self.volumetric_mesh_item.setMeshData(meshdata=md_volumetric)
+            return
+            
+        if not hasattr(self, '_full_volumetric_faces'):
+            return
+            
+        # The number of segments is the number of extrusion pairs we've drawn
+        final_lines = self._anim_visible_lines
+        final_colors = self._anim_visible_colors
         
-    def _update_volumetric_mesh(self, final_lines):
-        if len(final_lines) == 0:
+        is_extrusion = (final_colors[0::2, 3] > 0.5)
+        num_visible_extrusions = np.count_nonzero(is_extrusion)
+        
+        # Each segment generated exactly 8 faces (triangles)
+        num_faces = num_visible_extrusions * 8
+        
+        if num_faces <= 0:
             md_volumetric = gl.MeshData(vertexes=np.empty((0,3)), faces=np.empty((0,3), dtype=np.uint32))
             self.volumetric_mesh_item.setMeshData(meshdata=md_volumetric)
             return
             
-        import numpy as np
-        num_segments = len(final_lines) // 2
-        try:
-            ew = float(self.input_extrusion_width.text())
-        except ValueError:
-            ew = 0.6
+        if num_faces > len(self._full_volumetric_faces):
+            num_faces = len(self._full_volumetric_faces)
             
-        p0 = final_lines[0::2]
-        p1 = final_lines[1::2]
-        v = p1 - p0
-        v[:, 2] = 0
-        lengths = np.linalg.norm(v, axis=1, keepdims=True)
-        lengths[lengths == 0] = 1.0
-        v = v / lengths
-        v_perp = np.column_stack([-v[:, 1], v[:, 0], np.zeros(num_segments)])
+        visible_faces = self._full_volumetric_faces[:num_faces]
+        visible_colors = self._full_volumetric_colors[:num_faces]
         
-        hw = ew / 2.0
-        v0 = p0 + v_perp * hw
-        v1 = p0 - v_perp * hw
-        v2 = p1 - v_perp * hw
-        v3 = p1 + v_perp * hw
-        
-        vertices = np.empty((num_segments * 4, 3))
-        vertices[0::4] = v0
-        vertices[1::4] = v1
-        vertices[2::4] = v2
-        vertices[3::4] = v3
-        
-        faces = np.empty((num_segments * 2, 3), dtype=np.uint32)
-        base = np.arange(num_segments, dtype=np.uint32) * 4
-        faces[0::2, 0] = base + 0
-        faces[0::2, 1] = base + 1
-        faces[0::2, 2] = base + 2
-        faces[1::2, 0] = base + 0
-        faces[1::2, 1] = base + 2
-        faces[1::2, 2] = base + 3
-        
-        # Start fully solid green
-        face_colors = np.ones((num_segments * 2, 4), dtype=np.float32)
-        face_colors[:, :3] = [0.063, 0.725, 0.506]
-        
-        md_volumetric = gl.MeshData(vertexes=vertices, faces=faces, faceColors=face_colors)
+        # We can pass the FULL vertices array, as long as faces only references valid vertices
+        md_volumetric = gl.MeshData(
+            vertexes=self._full_volumetric_verts, 
+            faces=visible_faces, 
+            faceColors=visible_colors
+        )
         self.volumetric_mesh_item.setMeshData(meshdata=md_volumetric)
-        self.volumetric_mesh_item.original_vertices = vertices
-        self.volumetric_mesh_item.original_faces = faces
-        self.volumetric_mesh_item.original_colors = face_colors
 
-    def _on_layer_slider_changed(self, value):
+    def _on_layer_slider_changed(self, value=None):
         if not hasattr(self, '_cached_layer_lines') or not self._cached_layer_lines:
             return
             
         import numpy as np
-        min_idx, max_idx = value
+        
+        # Guard against recursive event loops
+        if getattr(self, '_updating_sliders', False):
+            return
+            
+        self._updating_sliders = True
+        
+        min_idx = self.min_layer_slider.value()
+        max_idx = self.max_layer_slider.value()
+        
+        # Enforce min <= max constraint
+        sender = self.sender()
+        if sender == self.min_layer_slider and min_idx > max_idx:
+            self.max_layer_slider.setValue(min_idx)
+            max_idx = min_idx
+        elif sender == self.max_layer_slider and max_idx < min_idx:
+            self.min_layer_slider.setValue(max_idx)
+            min_idx = max_idx
+            
+        self._updating_sliders = False
         
         # Guard indices
         min_idx = max(0, min_idx)
         max_idx = min(len(self._cached_layer_lines) - 1, max_idx)
+        
+        visible_lines = [self._cached_layer_lines[i][1] for i in range(min_idx, max_idx + 1)]
+        visible_colors = [self._cached_layer_lines[i][2] for i in range(min_idx, max_idx + 1)]
+        
+        if visible_lines:
+            self._anim_visible_lines = np.vstack(visible_lines)
+            self._anim_visible_colors = np.vstack(visible_colors)
+        else:
+            self._anim_visible_lines = None
+            self._anim_visible_colors = None
+            
+        self._update_volumetric_mesh()
+        
+        # Trigger an update of the geometry according to anim slider
+        self._on_anim_slider_changed(self.anim_slider.value())
         
         if min_idx > max_idx:
             # Hide completely
@@ -1223,11 +1396,12 @@ class SliceWidget(QWidget):
                 if not self.anim_slider.isEnabled():
                     self.anim_slider.setEnabled(True)
                     
-                self._update_volumetric_mesh(final_lines)
+                self._update_volumetric_mesh()
             else:
-                self.slice_preview_item.setData(pos=np.empty((0, 3)))
+                self.slice_preview_item.setData(pos=np.empty((0, 3)), color=np.empty((0, 4)))
                 self._anim_visible_lines = None
-                self._update_volumetric_mesh(np.empty((0, 3)))
+                self._anim_visible_colors = None
+                self._update_volumetric_mesh()
 
     def _on_3d_bead_toggled(self, checked):
         if hasattr(self, 'slice_preview_item') and self.slice_preview_item:
@@ -1261,49 +1435,103 @@ class SliceWidget(QWidget):
             return
             
         import numpy as np
-        # The slider value represents the number of segments to draw
-        # Each segment is 2 points in mode='lines'
         num_points = value * 2
         
         if num_points <= 0:
-            self.slice_preview_item.setData(pos=np.empty((0, 3)))
+            self.slice_preview_item.setData(pos=np.empty((0, 3)), color=np.empty((0, 4)))
             if hasattr(self, 'nozzle_cursor') and self.nozzle_cursor:
                 self.nozzle_cursor.hide()
         elif num_points >= len(self._anim_visible_lines):
-            self.slice_preview_item.setData(pos=self._anim_visible_lines)
+            colors = self._anim_visible_colors
+            if self.btn_3d_bead.isChecked():
+                colors = colors.copy()
+                colors[:, 3] = 0.05
+            self.slice_preview_item.setData(pos=self._anim_visible_lines, color=colors)
             if hasattr(self, 'nozzle_cursor') and self.nozzle_cursor:
                 self.nozzle_cursor.show()
                 pos = self._anim_visible_lines[-1]
                 self.nozzle_cursor.resetTransform()
                 self.nozzle_cursor.translate(pos[0], pos[1], pos[2])
         else:
-            # Efficiently truncate the numpy array to only draw up to the slider's point
-            self.slice_preview_item.setData(pos=self._anim_visible_lines[:num_points])
+            colors = self._anim_visible_colors[:num_points]
+            if self.btn_3d_bead.isChecked():
+                colors = colors.copy()
+                colors[:, 3] = 0.05
+            self.slice_preview_item.setData(pos=self._anim_visible_lines[:num_points], color=colors)
             if hasattr(self, 'nozzle_cursor') and self.nozzle_cursor:
                 self.nozzle_cursor.show()
                 pos = self._anim_visible_lines[num_points-1]
                 self.nozzle_cursor.resetTransform()
                 self.nozzle_cursor.translate(pos[0], pos[1], pos[2])
                 
-        # Update volumetric mesh geometry
-        if hasattr(self, 'volumetric_mesh_item') and self.volumetric_mesh_item and self.btn_3d_bead.isChecked():
-            try:
-                if hasattr(self.volumetric_mesh_item, 'original_faces'):
-                    # To animate, we literally just feed it a truncated list of faces!
-                    # The vertex array stays the same, we just tell OpenGL to draw fewer triangles.
-                    faces_to_draw = self.volumetric_mesh_item.original_faces[:value * 2]
-                    colors_to_draw = self.volumetric_mesh_item.original_colors[:value * 2]
+        # Also dim the CAD model further when in 3D bead view
+        models = getattr(self.gl_viewer, 'active_models', [])
+        for model in models:
+            if getattr(model, '_is_sliced', False):
+                if self.btn_3d_bead.isChecked():
+                    model.setColor((0.3, 0.3, 0.3, 0.02)) # Even more transparent
+                else:
+                    model.setColor((0.3, 0.3, 0.3, 0.15))
                     
-                    md = gl.MeshData(
-                        vertexes=self.volumetric_mesh_item.original_vertices, 
-                        faces=faces_to_draw, 
-                        faceColors=colors_to_draw
-                    )
-                    self.volumetric_mesh_item.setMeshData(meshdata=md)
-            except Exception as e:
-                print(f"Error updating volumetric mesh: {e}")
+        self._update_volumetric_mesh()
+        
+    def _update_volumetric_mesh(self):
+        import numpy as np
+        import pyqtgraph.opengl as gl
+        if not hasattr(self, '_anim_visible_lines') or self._anim_visible_lines is None:
+            if hasattr(self, 'volumetric_mesh_item') and self.volumetric_mesh_item:
+                md_volumetric = gl.MeshData(vertexes=np.empty((0,3)), faces=np.empty((0,3), dtype=np.uint32))
+                self.volumetric_mesh_item.setMeshData(meshdata=md_volumetric)
+            return
             
+        if not hasattr(self, '_full_volumetric_faces') or not self.btn_3d_bead.isChecked():
+            return
             
+        value = self.anim_slider.value()
+        final_lines = self._anim_visible_lines
+        final_colors = self._anim_visible_colors
+        
+        # We need to know exactly how many extrusions we've drawn up to `value`
+        drawn_colors = final_colors[:value*2]
+        is_extrusion = (drawn_colors[0::2, 3] > 0.5)
+        num_visible_extrusions = np.count_nonzero(is_extrusion)
+        
+        num_faces = num_visible_extrusions * 8
+        
+        if num_faces <= 0:
+            md_volumetric = gl.MeshData(vertexes=np.empty((0,3)), faces=np.empty((0,3), dtype=np.uint32))
+            self.volumetric_mesh_item.setMeshData(meshdata=md_volumetric)
+            return
+            
+        if num_faces > len(self._full_volumetric_faces):
+            num_faces = len(self._full_volumetric_faces)
+            
+        visible_faces = self._full_volumetric_faces[:num_faces]
+        visible_colors = self._full_volumetric_colors[:num_faces].copy()
+        
+        # Re-apply fading (ambient occlusion based on distance to nozzle Z)
+        if value > 0 and len(final_lines) > 0:
+            num_points = min(value*2, len(final_lines))
+            current_z = final_lines[num_points - 1, 2]
+            
+            # Since visible_faces corresponds to self._full_volumetric_verts, 
+            # we check the Z height of the first vertex of each face
+            vertex_indices = visible_faces[:, 0]
+            face_z = self._full_volumetric_verts[vertex_indices, 2]
+            dz = current_z - face_z
+            
+            fade_dist = 150.0
+            fade_factor = np.clip(1.0 - (dz / fade_dist) * 0.85, 0.15, 1.0)
+            
+            visible_colors[:, :3] *= fade_factor[:, None]
+            
+        md_volumetric = gl.MeshData(
+            vertexes=self._full_volumetric_verts, 
+            faces=visible_faces, 
+            faceColors=visible_colors
+        )
+        self.volumetric_mesh_item.setMeshData(meshdata=md_volumetric)
+
     def _on_anim_tick(self):
         if self._anim_visible_lines is None:
             self._toggle_animation()

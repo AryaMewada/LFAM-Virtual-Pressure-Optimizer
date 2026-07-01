@@ -7,6 +7,7 @@ from .mesh_prep import prepare_mesh_for_slicing, get_mesh_z_bounds
 from .intersection import slice_mesh_at_z
 from .stitcher import stitch_segments_to_polygons
 from .perimeter import generate_perimeters
+from .optimize import optimize_travel
 
 class SlicerEngine:
     def __init__(self, layer_height: float = 0.2, initial_layer_height: float = 0.2, extrusion_width: float = 0.6, wall_count: int = 2):
@@ -41,6 +42,8 @@ class SlicerEngine:
         result = SliceResult()
         
         layer_count = 0
+        current_nozzle_pos = np.array([0.0, 0.0])
+        
         while current_z <= z_max:
             # 3. Intersect plane
             segments = slice_mesh_at_z(vertices, current_z)
@@ -51,8 +54,11 @@ class SlicerEngine:
             # 5. Generate Perimeters (Walls)
             perimeters = generate_perimeters(polygons, self.extrusion_width, self.wall_count)
             
+            # 6. Optimize Travel (Seam Alignment)
+            optimized_perimeters, current_nozzle_pos = optimize_travel(perimeters, current_nozzle_pos)
+            
             # Store layer
-            result.layers.append(SliceLayer(z_height=current_z, polygons=polygons, perimeters=perimeters))
+            result.layers.append(SliceLayer(z_height=current_z, polygons=polygons, perimeters=optimized_perimeters))
             
             current_z += self.layer_height
             layer_count += 1
